@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CET Agent</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 应用根容器 -->
+    <div id="app">
+        <!-- 侧边栏 -->
+        <aside id="sidebar" class="sidebar collapsed">
+            <div class="sidebar-header">
+                <button id="menu-toggle" class="icon-btn" title="展开菜单"><span class="material-symbols-outlined">menu</span></button>
+                <button id="new-chat-btn" class="new-chat-btn" title="发起新对话 (Ctrl+Shift+O)">
+                    <span class="new-chat-icon"><span class="material-symbols-outlined">add</span></span>
+                    <span class="btn-label">发起新对话</span>
+                    <span class="tooltip">发起新对话 (Ctrl+Shift+O)</span>
+                </button>
+            </div>
+            <div class="sidebar-content">
+                <div id="session-list-container"></div>
+            </div>
+            <div class="sidebar-footer">
+                <button id="settings-btn" class="icon-btn" title="设置">
+                    <span><span class="material-symbols-outlined">settings</span></span>
+                    <span class="btn-label">设置</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main id="main" class="main">
+            <!-- 顶部标题栏 -->
+            <header class="top-bar">
+                <div class="top-bar-left">
+                    <span class="logo">CET Agent</span>
+                </div>
+                <div class="top-bar-right">
+                    <div class="avatar" id="user-avatar">?</div>
+                </div>
+            </header>
+
+            <!-- 视图容器 -->
+            <div id="view-container" class="view-container">
+                <!-- 登录页 -->
+                <div id="view-login" class="view hidden">
+                    <div class="auth-card">
+                        <h1 class="logo-gradient">CET Agent</h1>
+                        <div class="auth-tabs">
+                            <button class="auth-tab active" data-tab="login">登录</button>
+                            <button class="auth-tab" data-tab="register">注册</button>
+                        </div>
+                        <form id="login-form" class="auth-form">
+                            <input type="text" name="username" placeholder="用户名" required minlength="3" maxlength="50">
+                            <input type="password" name="password" placeholder="密码" required minlength="6">
+                            <button type="submit" class="btn-primary">登录</button>
+                        </form>
+                        <form id="register-form" class="auth-form hidden">
+                            <input type="text" name="username" placeholder="用户名" required minlength="3" maxlength="50">
+                            <input type="password" name="password" placeholder="密码" required minlength="6">
+                            <input type="password" name="confirm" placeholder="确认密码" required minlength="6">
+                            <button type="submit" class="btn-primary">注册</button>
+                        </form>
+                        <p id="auth-error" class="error-text"></p>
+                        <p class="auth-back">
+                            <a href="#" id="auth-back-link"><span class="material-symbols-outlined">arrow_back</span> 返回首页</a>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 首页 -->
+                <div id="view-home" class="view hidden">
+                    <div class="home-content">
+                        <div class="welcome-text">
+                            <div class="welcome-subtitle" id="home-nickname">同学，你好</div>
+                            <div class="welcome-title gradient-text">需要我为你做些什么？</div>
+                        </div>
+                        <div class="input-area">
+                            <div class="input-box">
+                                <textarea id="home-input" placeholder="问问 CET Agent" rows="1"></textarea>
+                                <div class="input-actions">
+                                    <div></div>
+                                    <button id="home-send" class="send-btn" title="发送"><span class="material-symbols-outlined">send</span></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="module-cards">
+                            <button class="module-card" data-module="writing">
+                                <span class="module-icon"><span class="material-symbols-outlined">edit</span></span>
+                                <span class="module-label">写作批改</span>
+                            </button>
+                            <button class="module-card" data-module="reading">
+                                <span class="module-icon"><span class="material-symbols-outlined">menu_book</span></span>
+                                <span class="module-label">阅读精读</span>
+                            </button>
+                            <button class="module-card" data-module="translation">
+                                <span class="module-icon"><span class="material-symbols-outlined">translate</span></span>
+                                <span class="module-label">翻译训练</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 对话页 -->
+                <div id="view-chat" class="view hidden">
+                    <div class="chat-container">
+                        <div id="messages-list" class="messages-list"></div>
+                        <div class="chat-input-area">
+                            <div class="input-box">
+                                <textarea id="chat-input" placeholder="问问 CET Agent" rows="1"></textarea>
+                                <div class="input-actions">
+                                    <div></div>
+                                    <button id="chat-send" class="send-btn" title="发送"><span class="material-symbols-outlined">send</span></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 设置页 -->
+                <div id="view-settings" class="view hidden">
+                    <div class="settings-card">
+                        <h2>设置</h2>
+                        <div class="setting-item">
+                            <label>头像</label>
+                            <div class="avatar-picker">
+                                <div class="avatar-preview" id="avatar-preview">?</div>
+                                <div class="avatar-upload">
+                                    <label class="avatar-upload-btn">
+                                        <span class="material-symbols-outlined">upload</span> 上传图片
+                                        <input type="file" id="avatar-file-input" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+                                    </label>
+                                    <button type="button" id="avatar-reset-btn" class="avatar-reset-btn">重置</button>
+                                </div>
+                            </div>
+                            <div class="avatar-colors" id="avatar-colors"></div>
+                        </div>
+                        <div class="setting-item">
+                            <label>昵称</label>
+                            <input type="text" id="display-name" name="display_name" placeholder="输入昵称" maxlength="30">
+                        </div>
+                        <div class="setting-item">
+                            <label>考试级别</label>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="exam_level" value="CET4"> CET4
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="exam_level" value="CET6"> CET6
+                                </label>
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <label>考试日期</label>
+                            <input type="date" id="exam-date" name="exam_date">
+                        </div>
+                        <div class="setting-actions">
+                            <button id="save-settings" class="btn-primary">保存</button>
+                            <button id="back-home" class="btn-secondary">返回</button>
+                        </div>
+                        <p id="settings-message" class="info-text"></p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="vendor/marked.umd.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/router.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
