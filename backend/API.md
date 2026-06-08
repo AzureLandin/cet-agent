@@ -4,6 +4,19 @@
 
 ---
 
+## 0. 运行配置
+
+后端运行时配置统一来自 `backend/.env`。
+
+启动前：
+
+1. 复制 `backend/.env.example` 为 `backend/.env`
+2. 填写数据库、模型、会话密钥等环境变量
+
+当前不再依赖 `config.yaml` 或 `config.yaml.example` 作为运行时配置源。
+
+---
+
 ## 1. 接口总览
 
 | # | 方法 | 路径 | 需要认证 | 模块文件 | 说明 |

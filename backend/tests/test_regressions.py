@@ -12,6 +12,7 @@ if BACKEND_DIR not in sys.path:
 
 import messages  # noqa: E402
 import app as app_module  # noqa: E402
+import config as config_module  # noqa: E402
 from flask import g, request  # noqa: E402
 
 
@@ -70,6 +71,37 @@ class FakeModelClient:
 
 
 class RegressionTests(unittest.TestCase):
+    def test_load_config_reads_backend_settings_from_environment(self):
+        with patch.dict(os.environ, {
+            "CET_DB_USER": "cet_agent",
+            "CET_DB_PASSWORD": "secret",
+            "CET_DB_NAME": "cet_web_agent",
+            "CET_MODEL_BASE_URL": "https://api.deepseek.com",
+            "CET_MODEL_API_KEY": "api-key",
+            "CET_MODEL_NAME": "deepseek-chat",
+            "CET_SESSION_SECRET_KEY": "session-secret",
+        }, clear=True):
+            config = config_module.load_config()
+
+        self.assertEqual(config["db"]["host"], "localhost")
+        self.assertEqual(config["db"]["port"], 3306)
+        self.assertEqual(config["db"]["user"], "cet_agent")
+        self.assertEqual(config["db"]["password"], "secret")
+        self.assertEqual(config["db"]["name"], "cet_web_agent")
+        self.assertEqual(config["model"]["base_url"], "https://api.deepseek.com")
+        self.assertEqual(config["model"]["api_key"], "api-key")
+        self.assertEqual(config["model"]["model"], "deepseek-chat")
+        self.assertEqual(config["session"]["secret_key"], "session-secret")
+        self.assertEqual(config["session"]["cookie_secure"], False)
+        self.assertEqual(config["cors"]["allowed_origins"], ["http://localhost:8080", "http://127.0.0.1:8080"])
+
+    def test_load_config_rejects_missing_required_environment_variables(self):
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(ValueError) as exc:
+                config_module.load_config()
+
+        self.assertIn("CET_DB_USER", str(exc.exception))
+
     def test_build_messages_does_not_duplicate_latest_user_message(self):
         result = messages.build_messages(FakeDBForBuildMessages(), 1, "writing", "hello")
 

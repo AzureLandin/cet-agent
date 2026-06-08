@@ -1,37 +1,62 @@
 import os
-import yaml
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DEFAULT_ALLOWED_ORIGINS = ["http://localhost:8080", "http://127.0.0.1:8080"]
 
 
-DEFAULT_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.yaml")
-
-REQUIRED_KEYS = [
-    ("db", "host"),
-    ("db", "port"),
-    ("db", "user"),
-    ("db", "password"),
-    ("db", "name"),
-    ("model", "base_url"),
-    ("model", "api_key"),
-    ("model", "model"),
-    ("session", "secret_key"),
-]
+def _require_env(name: str) -> str:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        raise ValueError(f"Missing required environment variable: {name}")
+    return value.strip()
 
 
-def load_config(path: str = DEFAULT_CONFIG_PATH) -> dict:
-    if not os.path.isfile(path):
-        raise FileNotFoundError(
-            f"Config file not found: {path}. "
-            "Please copy config.yaml.example to config.yaml and fill in your settings."
-        )
+def _get_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
-    with open(path, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
 
-    if not isinstance(config, dict):
-        raise ValueError("Config file must contain a YAML mapping.")
+def _get_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return default
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise ValueError(f"Environment variable {name} must be an integer.") from exc
 
-    for section, key in REQUIRED_KEYS:
-        if section not in config or key not in config[section]:
-            raise ValueError(f"Missing required config key: {section}.{key}")
 
-    return config
+def _get_allowed_origins() -> list[str]:
+    value = os.getenv("CET_CORS_ALLOWED_ORIGINS")
+    if value is None or value.strip() == "":
+        return DEFAULT_ALLOWED_ORIGINS[:]
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def load_config() -> dict:
+    return {
+        "db": {
+            "host": os.getenv("CET_DB_HOST", "localhost"),
+            "port": _get_int("CET_DB_PORT", 3306),
+            "user": _require_env("CET_DB_USER"),
+            "password": _require_env("CET_DB_PASSWORD"),
+            "name": _require_env("CET_DB_NAME"),
+        },
+        "model": {
+            "base_url": _require_env("CET_MODEL_BASE_URL"),
+            "api_key": _require_env("CET_MODEL_API_KEY"),
+            "model": _require_env("CET_MODEL_NAME"),
+        },
+        "session": {
+            "secret_key": _require_env("CET_SESSION_SECRET_KEY"),
+            "cookie_secure": _get_bool("CET_COOKIE_SECURE", False),
+        },
+        "cors": {
+            "allowed_origins": _get_allowed_origins(),
+        },
+    }
