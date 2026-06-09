@@ -4,3 +4,6 @@ backend/.env
 __pycache__/
 *.pyc
 .codegraph/
+docs/
+.claude/
+review/
