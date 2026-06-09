@@ -1,0 +1,7 @@
+.git/
+.codegraph/
+__pycache__/
+*.pyc
+backend/.env
+backend/config.yaml
+docs/

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CET Agent</title>
     <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap">
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -16,9 +16,9 @@
         <!-- 侧边栏 -->
         <aside id="sidebar" class="sidebar collapsed">
             <div class="sidebar-header">
-                <button id="menu-toggle" class="icon-btn" title="展开菜单"><span class="material-symbols-outlined">menu</span></button>
+                <button id="menu-toggle" class="icon-btn" title="展开菜单"><i class="fa-solid fa-bars"></i></button>
                 <button id="new-chat-btn" class="new-chat-btn" title="发起新对话 (Ctrl+Shift+O)">
-                    <span class="new-chat-icon"><span class="material-symbols-outlined">add</span></span>
+                    <span class="new-chat-icon"><i class="fa-solid fa-plus"></i></span>
                     <span class="btn-label">发起新对话</span>
                     <span class="tooltip">发起新对话 (Ctrl+Shift+O)</span>
                 </button>
@@ -28,7 +28,7 @@
             </div>
             <div class="sidebar-footer">
                 <button id="settings-btn" class="icon-btn" title="设置">
-                    <span><span class="material-symbols-outlined">settings</span></span>
+                    <span><i class="fa-solid fa-gear"></i></span>
                     <span class="btn-label">设置</span>
                 </button>
             </div>
@@ -69,7 +69,7 @@
                         </form>
                         <p id="auth-error" class="error-text"></p>
                         <p class="auth-back">
-                            <a href="#" id="auth-back-link"><span class="material-symbols-outlined">arrow_back</span> 返回首页</a>
+                            <a href="#" id="auth-back-link"><i class="fa-solid fa-arrow-left"></i> 返回首页</a>
                         </p>
                     </div>
                 </div>
@@ -86,21 +86,21 @@
                                 <textarea id="home-input" placeholder="问问 CET Agent" rows="1"></textarea>
                                 <div class="input-actions">
                                     <div></div>
-                                    <button id="home-send" class="send-btn" title="发送"><span class="material-symbols-outlined">send</span></button>
+                                    <button id="home-send" class="send-btn" title="发送"><i class="fa-solid fa-paper-plane"></i></button>
                                 </div>
                             </div>
                         </div>
                         <div class="module-cards">
                             <button class="module-card" data-module="writing">
-                                <span class="module-icon"><span class="material-symbols-outlined">edit</span></span>
+                                <span class="module-icon"><i class="fa-solid fa-pen-to-square"></i></span>
                                 <span class="module-label">写作批改</span>
                             </button>
                             <button class="module-card" data-module="reading">
-                                <span class="module-icon"><span class="material-symbols-outlined">menu_book</span></span>
+                                <span class="module-icon"><i class="fa-solid fa-book-open"></i></span>
                                 <span class="module-label">阅读精读</span>
                             </button>
                             <button class="module-card" data-module="translation">
-                                <span class="module-icon"><span class="material-symbols-outlined">translate</span></span>
+                                <span class="module-icon"><i class="fa-solid fa-language"></i></span>
                                 <span class="module-label">翻译训练</span>
                             </button>
                         </div>
@@ -116,7 +116,7 @@
                                 <textarea id="chat-input" placeholder="问问 CET Agent" rows="1"></textarea>
                                 <div class="input-actions">
                                     <div></div>
-                                    <button id="chat-send" class="send-btn" title="发送"><span class="material-symbols-outlined">send</span></button>
+                                    <button id="chat-send" class="send-btn" title="发送"><i class="fa-solid fa-paper-plane"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -125,46 +125,93 @@
 
                 <!-- 设置页 -->
                 <div id="view-settings" class="view hidden">
-                    <div class="settings-card">
-                        <h2>设置</h2>
-                        <div class="setting-item">
-                            <label>头像</label>
-                            <div class="avatar-picker">
-                                <div class="avatar-preview" id="avatar-preview">?</div>
-                                <div class="avatar-upload">
-                                    <label class="avatar-upload-btn">
-                                        <span class="material-symbols-outlined">upload</span> 上传图片
-                                        <input type="file" id="avatar-file-input" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
-                                    </label>
-                                    <button type="button" id="avatar-reset-btn" class="avatar-reset-btn">重置</button>
+                    <div class="settings-page">
+                        <header class="settings-header">
+                            <h1>设置</h1>
+                            <p class="settings-subtitle">偏好与账户</p>
+                        </header>
+
+                        <section class="settings-section">
+                            <h2 class="section-title">个人信息</h2>
+                            <div class="settings-row">
+                                <div class="row-label">
+                                    <span class="row-label-title">头像</span>
+                                    <span class="row-label-desc">用作侧边栏与登出入口</span>
+                                </div>
+                                <div class="row-control">
+                                    <div class="avatar-picker">
+                                        <div class="avatar-preview" id="avatar-preview">?</div>
+                                        <div class="avatar-upload">
+                                            <label class="avatar-upload-btn">
+                                                <i class="fa-solid fa-cloud-arrow-up"></i> 上传图片
+                                                <input type="file" id="avatar-file-input" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+                                            </label>
+                                            <button type="button" id="avatar-reset-btn" class="avatar-reset-btn">重置</button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="avatar-colors" id="avatar-colors"></div>
-                        </div>
-                        <div class="setting-item">
-                            <label>昵称</label>
-                            <input type="text" id="display-name" name="display_name" placeholder="输入昵称" maxlength="30">
-                        </div>
-                        <div class="setting-item">
-                            <label>考试级别</label>
-                            <div class="radio-group">
-                                <label class="radio-label">
-                                    <input type="radio" name="exam_level" value="CET4"> CET4
-                                </label>
-                                <label class="radio-label">
-                                    <input type="radio" name="exam_level" value="CET6"> CET6
-                                </label>
+                            <div class="settings-row settings-row-stack">
+                                <div class="row-label">
+                                    <span class="row-label-title">头像底色</span>
+                                    <span class="row-label-desc">未上传头像时的渐变色</span>
+                                </div>
+                                <div class="row-control row-control-full">
+                                    <div class="avatar-colors" id="avatar-colors"></div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="setting-item">
-                            <label>考试日期</label>
-                            <input type="date" id="exam-date" name="exam_date">
-                        </div>
-                        <div class="setting-actions">
-                            <button id="save-settings" class="btn-primary">保存</button>
-                            <button id="back-home" class="btn-secondary">返回</button>
-                        </div>
-                        <p id="settings-message" class="info-text"></p>
+                            <div class="settings-row">
+                                <div class="row-label">
+                                    <span class="row-label-title">昵称</span>
+                                    <span class="row-label-desc">最多 30 个字符</span>
+                                </div>
+                                <div class="row-control">
+                                    <input type="text" id="display-name" name="display_name" placeholder="输入昵称" maxlength="30">
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="settings-section">
+                            <h2 class="section-title">考试信息</h2>
+                            <div class="settings-row">
+                                <div class="row-label">
+                                    <span class="row-label-title">考试级别</span>
+                                    <span class="row-label-desc">用于个性化训练内容</span>
+                                </div>
+                                <div class="row-control">
+                                    <select id="exam-level" name="exam_level">
+                                        <option value="">未选择</option>
+                                        <option value="CET4">CET4</option>
+                                        <option value="CET6">CET6</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="settings-row">
+                                <div class="row-label">
+                                    <span class="row-label-title">考试日期</span>
+                                    <span class="row-label-desc">CET 仅在 6 月和 12 月各举办一次</span>
+                                </div>
+                                <div class="row-control">
+                                    <div class="date-picker-group">
+                                        <input type="number" id="exam-year" min="2024" max="2099" placeholder="年">
+                                        <select id="exam-month">
+                                            <option value="" disabled hidden selected>月份</option>
+                                            <option value="6">6 月</option>
+                                            <option value="12">12 月</option>
+                                        </select>
+                                        <input type="number" id="exam-day" min="1" max="31" placeholder="日">
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <footer class="settings-actions">
+                            <p id="settings-message" class="info-text"></p>
+                            <div class="settings-actions-buttons">
+                                <button id="back-home" class="btn-secondary">返回</button>
+                                <button id="save-settings" class="btn-primary">保存</button>
+                            </div>
+                        </footer>
                     </div>
                 </div>
             </div>

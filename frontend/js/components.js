@@ -2,9 +2,9 @@
  * 渲染侧边栏历史会话列表（按写作/阅读/翻译分组，支持删除）
  */
 const MODULE_ICONS = {
-    writing: '<span class="material-symbols-outlined">edit</span>',
-    reading: '<span class="material-symbols-outlined">menu_book</span>',
-    translation: '<span class="material-symbols-outlined">translate</span>',
+    writing: '<i class="fa-solid fa-pen-to-square"></i>',
+    reading: '<i class="fa-solid fa-book-open"></i>',
+    translation: '<i class="fa-solid fa-language"></i>',
 };
 
 const MODULE_LABELS = {
@@ -50,7 +50,7 @@ function renderSidebar() {
             const deleteBtn = createEl("button", {
                 class: "session-delete-btn",
                 title: "删除会话",
-                html: '<span class="material-symbols-outlined">close</span>',
+                html: '<i class="fa-solid fa-xmark"></i>',
             });
 
             deleteBtn.addEventListener("click", async (e) => {
@@ -135,9 +135,9 @@ function renderModuleCards(container, onSelect) {
     ];
 
     const ICON_MAP = {
-        writing: '<span class="material-symbols-outlined">edit</span>',
-        reading: '<span class="material-symbols-outlined">menu_book</span>',
-        translation: '<span class="material-symbols-outlined">translate</span>',
+        writing: '<i class="fa-solid fa-pen-to-square"></i>',
+        reading: '<i class="fa-solid fa-book-open"></i>',
+        translation: '<i class="fa-solid fa-language"></i>',
     };
 
     modules.forEach(({ key, label }) => {

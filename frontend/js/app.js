@@ -21,25 +21,35 @@ async function initApp() {
 
     // 后台异步检查登录状态（通过已有 Cookie）
     try {
-        const profile = await getProfile();
+        const [profile, sessionsOrNull] = await Promise.all([
+            getProfile(),
+            getSessions().catch((dataErr) => {
+                console.error("加载会话列表失败:", dataErr);
+                return null;
+            }),
+        ]);
         state.profile = profile;
         state.user = { username: profile.username || profile.display_name || "用户" };
-
-        try {
-            const sessions = await getSessions();
-            state.sessions = sessions;
-        } catch (dataErr) {
-            console.error("加载会话列表失败:", dataErr);
-        }
+        if (sessionsOrNull) state.sessions = sessionsOrNull;
 
         renderSidebar();
         updateAvatar();
+        updateHomeNickname();
         document.getElementById("sidebar").classList.remove("collapsed");
         state.sidebarOpen = true;
     } catch (err) {
         // 任何错误视为未登录，保持首页状态即可
         console.warn("未登录或后端不可达:", err.message || err);
     }
+}
+
+function updateHomeNickname() {
+    const nicknameEl = document.querySelector(".welcome-subtitle");
+    if (!nicknameEl) return;
+    const name = (state.profile && state.profile.display_name)
+        || (state.user && state.user.username)
+        || "同学";
+    nicknameEl.textContent = name + "，你好";
 }
 
 function updateAvatar() {

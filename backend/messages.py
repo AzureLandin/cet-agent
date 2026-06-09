@@ -72,12 +72,13 @@ def send_message(session_id: int):
     if len(user_content) > MAX_MESSAGE_LENGTH:
         return jsonify(error_code="MESSAGE_TOO_LONG", message=f"Max message length is {MAX_MESSAGE_LENGTH}."), 400
 
-    # Store user message
-    db.execute(
-        "INSERT INTO messages (session_id, role, content) VALUES (%s, %s, %s)",
-        (session_id, "user", user_content),
-    )
-    db.execute("UPDATE sessions SET updated_at = NOW() WHERE id = %s", (session_id,))
+    # Store user message + bump session timestamp atomically
+    with db.transaction() as cur:
+        cur.execute(
+            "INSERT INTO messages (session_id, role, content) VALUES (%s, %s, %s)",
+            (session_id, "user", user_content),
+        )
+        cur.execute("UPDATE sessions SET updated_at = NOW() WHERE id = %s", (session_id,))
 
     # Fetch profile
     profile = db.fetchone(
@@ -98,11 +99,13 @@ def send_message(session_id: int):
                 yield f"data: {payload}\n\n"
 
             full_response = "".join(assistant_chunks)
-            db.execute(
-                "INSERT INTO messages (session_id, role, content) VALUES (%s, %s, %s)",
-                (session_id, "assistant", full_response),
-            )
-            db.execute("UPDATE sessions SET updated_at = NOW() WHERE id = %s", (session_id,))
+            # Persist assistant message + bump session timestamp atomically
+            with db.transaction() as cur:
+                cur.execute(
+                    "INSERT INTO messages (session_id, role, content) VALUES (%s, %s, %s)",
+                    (session_id, "assistant", full_response),
+                )
+                cur.execute("UPDATE sessions SET updated_at = NOW() WHERE id = %s", (session_id,))
             payload = json.dumps({"event": "done", "data": ""})
             yield f"data: {payload}\n\n"
         except Exception as e:

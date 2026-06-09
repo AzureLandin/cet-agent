@@ -1,4 +1,4 @@
-const API_BASE = "http://127.0.0.1:5000";
+const API_BASE = "";
 
 /**
  * 基础请求封装
@@ -86,6 +86,10 @@ async function uploadAvatar(file) {
     return response.json();
 }
 
+function deleteAvatar() {
+    return request("/profile/avatar", { method: "DELETE" });
+}
+
 /* ===== Sessions ===== */
 
 function createSession(module) {
@@ -116,65 +120,88 @@ function deleteSession(id) {
  * @param {object} callbacks - { onToken(token), onDone(), onError(error) }
  * @returns {Promise<void>}
  */
+const STREAM_IDLE_TIMEOUT_MS = 120_000;
+
 async function sendMessage(sessionId, content, callbacks = {}) {
     const { onToken, onDone, onError } = callbacks;
 
-    const response = await fetch(`${API_BASE}/sessions/${sessionId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ content }),
-    });
-
-    if (response.status === 401) {
-        const err = new Error("Authentication required.");
-        err.code = "UNAUTHORIZED";
-        if (onError) onError(err);
-        throw err;
-    }
-
-    if (!response.ok) {
-        const errBody = await response.json().catch(() => ({}));
-        const err = new Error(errBody.message || `HTTP ${response.status}`);
-        err.code = errBody.error_code || `HTTP_${response.status}`;
-        if (onError) onError(err);
-        throw err;
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
+    const controller = new AbortController();
+    let timeoutId = setTimeout(() => controller.abort(), STREAM_IDLE_TIMEOUT_MS);
+    const resetTimeout = () => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => controller.abort(), STREAM_IDLE_TIMEOUT_MS);
+    };
 
     try {
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+        const response = await fetch(`${API_BASE}/sessions/${sessionId}/messages`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ content }),
+            signal: controller.signal,
+        });
 
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop(); // 保留未完整的一行
+        if (response.status === 401) {
+            const err = new Error("Authentication required.");
+            err.code = "UNAUTHORIZED";
+            if (onError) { onError(err); return; }
+            throw err;
+        }
 
-            for (const line of lines) {
-                if (!line.startsWith("data: ")) continue;
+        if (!response.ok) {
+            const errBody = await response.json().catch(() => ({}));
+            const err = new Error(errBody.message || `HTTP ${response.status}`);
+            err.code = errBody.error_code || `HTTP_${response.status}`;
+            if (onError) { onError(err); return; }
+            throw err;
+        }
 
-                let payload;
-                try {
-                    payload = JSON.parse(line.slice(6));
-                } catch (e) {
-                    continue; // 忽略解析失败的行
-                }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
 
-                if (payload.event === "token" && onToken) {
-                    onToken(payload.data);
-                } else if (payload.event === "done" && onDone) {
-                    onDone();
-                } else if (payload.event === "error" && onError) {
-                    onError(new Error(payload.data || "Stream error"));
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split("\n");
+                buffer = lines.pop(); // 保留未完整的一行
+
+                for (const line of lines) {
+                    if (!line.startsWith("data: ")) continue;
+
+                    let payload;
+                    try {
+                        payload = JSON.parse(line.slice(6));
+                    } catch (e) {
+                        continue; // 忽略解析失败的行
+                    }
+
+                    if (payload.event === "token" && onToken) {
+                        resetTimeout();
+                        onToken(payload.data);
+                    } else if (payload.event === "done" && onDone) {
+                        onDone();
+                    } else if (payload.event === "error" && onError) {
+                        onError(new Error(payload.data || "Stream error"));
+                    }
                 }
             }
+        } finally {
+            reader.releaseLock();
         }
+    } catch (err) {
+        if (err.name === "AbortError" || controller.signal.aborted) {
+            const timeoutErr = new Error("响应超时，请重试");
+            timeoutErr.code = "TIMEOUT";
+            if (onError) { onError(timeoutErr); return; }
+            throw timeoutErr;
+        }
+        throw err;
     } finally {
-        reader.releaseLock();
+        clearTimeout(timeoutId);
     }
 }
 

@@ -38,6 +38,19 @@ class DB:
         finally:
             conn.close()
 
+    @contextmanager
+    def transaction(self):
+        """Execute multiple statements atomically in one connection.
+
+        Use when several writes must succeed or fail together:
+
+            with db.transaction() as cur:
+                cur.execute("INSERT INTO a ...", (...))
+                cur.execute("INSERT INTO b ...", (...))
+        """
+        with self.cursor() as cur:
+            yield cur
+
     def execute(self, sql: str, args=()):
         with self.cursor() as cur:
             cur.execute(sql, args)

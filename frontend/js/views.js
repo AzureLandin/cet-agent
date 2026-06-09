@@ -60,13 +60,15 @@ function setupLoginListeners() {
             const user = await login(username, password);
             state.user = user;
             state.profile = await getProfile();
+            try {
+                state.sessions = await getSessions();
+            } catch (sessErr) {
+                console.error("加载会话失败:", sessErr);
+            }
+            renderSidebar();
+            updateAvatar();
             hideLoading();
             navigateTo("home");
-            getSessions().then(sessions => {
-                state.sessions = sessions;
-                renderSidebar();
-                updateAvatar();
-            }).catch(e => console.error("加载会话失败:", e));
         } catch (err) {
             hideLoading();
             errorEl.textContent = err.message || "登录失败";
@@ -91,13 +93,15 @@ function setupLoginListeners() {
             const user = await register(username, password);
             state.user = user;
             state.profile = await getProfile();
+            try {
+                state.sessions = await getSessions();
+            } catch (sessErr) {
+                console.error("加载会话失败:", sessErr);
+            }
+            renderSidebar();
+            updateAvatar();
             hideLoading();
             navigateTo("home");
-            getSessions().then(sessions => {
-                state.sessions = sessions;
-                renderSidebar();
-                updateAvatar();
-            }).catch(e => console.error("加载会话失败:", e));
         } catch (err) {
             hideLoading();
             errorEl.textContent = err.message || "注册失败";
@@ -125,9 +129,7 @@ function showHomeView() {
     }
 
     // 更新昵称
-    const nicknameEl = document.querySelector(".welcome-subtitle");
-    const name = state.user ? state.user.username : "同学";
-    nicknameEl.textContent = name + "，你好";
+    updateHomeNickname();
 
     // 绑定模块卡片点击
     const cardsContainer = view.querySelector(".module-cards");
@@ -143,7 +145,7 @@ function showHomeView() {
             state.sessions[module].unshift(session);
             renderSidebar();
             state._pendingSession = session;
-            state._pendingGreeting = true;
+            state._pendingMessage = "开始";
             navigateTo("chat", module, session.id);
         } catch (err) {
             hideLoading();
@@ -175,9 +177,8 @@ function showHomeView() {
             state.sessions.writing.unshift(session);
             renderSidebar();
             state._pendingSession = session;
-            state._pendingGreeting = false;
+            state._pendingMessage = content;
             navigateTo("chat", "writing", session.id);
-            setTimeout(() => sendChatMessage(session.id, content), 200);
         } catch (err) {
             hideLoading();
             showToast("创建会话失败: " + err.message, "error");
@@ -211,6 +212,10 @@ function showSettingsView() {
     const colorContainer = document.getElementById("avatar-colors");
     const fileInput = document.getElementById("avatar-file-input");
     const resetBtn = document.getElementById("avatar-reset-btn");
+    const examLevelEl = document.getElementById("exam-level");
+    const yearEl = document.getElementById("exam-year");
+    const monthEl = document.getElementById("exam-month");
+    const dayEl = document.getElementById("exam-day");
 
     const AVATAR_COLORS = [
         "#4285f4", "#ea4335", "#fbbc04", "#34a853",
@@ -257,13 +262,17 @@ function showSettingsView() {
     }
 
     if (state.profile) {
-        const levelInputs = document.querySelectorAll('input[name="exam_level"]');
-        levelInputs.forEach(input => {
-            input.checked = input.value === state.profile.exam_level;
-        });
-        const dateInput = document.getElementById("exam-date");
+        examLevelEl.value = state.profile.exam_level || "";
         if (state.profile.exam_date) {
-            dateInput.value = state.profile.exam_date;
+            const [y, m, d] = state.profile.exam_date.split("-");
+            yearEl.value = parseInt(y, 10);
+            const monthNum = parseInt(m, 10);
+            monthEl.value = (monthNum === 6 || monthNum === 12) ? String(monthNum) : "";
+            dayEl.value = parseInt(d, 10);
+        } else {
+            yearEl.value = "";
+            monthEl.value = "";
+            dayEl.value = "";
         }
         if (state.profile.display_name) {
             nameInput.value = state.profile.display_name;
@@ -298,26 +307,45 @@ function showSettingsView() {
         fileInput.value = "";
     });
 
-    resetBtn.addEventListener("click", () => {
-        pendingAvatarUrl = null;
-        avatarReset = true;
-        updateAvatarPreview();
+    resetBtn.addEventListener("click", async () => {
+        msgEl.textContent = "";
+        try {
+            await deleteAvatar();
+            pendingAvatarUrl = null;
+            avatarReset = true;
+            if (state.profile) state.profile.avatar_url = null;
+            updateAvatarPreview();
+            updateAvatar();
+        } catch (err) {
+            msgEl.textContent = "重置失败: " + err.message;
+        }
     });
 
     saveBtn.onclick = async () => {
         msgEl.textContent = "";
-        const levelInput = document.querySelector('input[name="exam_level"]:checked');
-        const dateInput = document.getElementById("exam-date");
 
         const data = {};
-        if (levelInput) data.exam_level = levelInput.value;
-        if (dateInput.value) data.exam_date = dateInput.value;
+        data.exam_level = examLevelEl.value || null;
         data.display_name = nameInput.value.trim() || null;
         data.avatar_color = selectedColor;
 
+        const year = yearEl.value.toString().trim();
+        const month = monthEl.value;
+        const day = dayEl.value.toString().trim();
+        if (year && month && day) {
+            data.exam_date = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+        } else if (!year && !month && !day) {
+            data.exam_date = null;
+        }
+        // partial fill: omit exam_date so backend keeps existing value
+
         try {
             await updateProfile(data);
-            state.profile = { ...state.profile, ...data, avatar_url: pendingAvatarUrl || (avatarReset ? null : state.profile.avatar_url) };
+            state.profile = {
+                ...state.profile,
+                ...data,
+                avatar_url: pendingAvatarUrl || (avatarReset ? null : state.profile.avatar_url),
+            };
             updateAvatar();
             msgEl.textContent = "保存成功";
         } catch (err) {
@@ -329,9 +357,6 @@ function showSettingsView() {
 }
 
 /* ===== 对话页 ===== */
-
-let streamingMessageId = null;
-let streamingContent = "";
 
 function showChatView(module, sessionId) {
     const view = document.getElementById("view-chat");
@@ -355,9 +380,10 @@ function showChatView(module, sessionId) {
         });
         scrollToBottom(messagesList);
         hideLoading();
-        if (state._pendingGreeting) {
-            delete state._pendingGreeting;
-            setTimeout(() => sendChatMessage(sessionId, "开始"), 100);
+        if (state._pendingMessage) {
+            const pending = state._pendingMessage;
+            delete state._pendingMessage;
+            sendChatMessage(sessionId, pending);
         }
     } else {
         loadSession(sessionId);
@@ -419,11 +445,11 @@ async function sendChatMessage(sessionId, content) {
     scrollToBottom(messagesList);
 
     // 2. 创建 AI 消息占位符（含思考中指示器）
-    streamingContent = "";
-    streamingMessageId = Date.now() + 1;
+    const myStreamId = Date.now() + 1;
+    let myContent = "";
     let isFirstToken = true;
     const aiMsg = {
-        id: streamingMessageId,
+        id: myStreamId,
         role: "assistant",
         content: "",
         created_at: new Date().toISOString(),
@@ -445,44 +471,38 @@ async function sendChatMessage(sessionId, content) {
         await sendMessage(sessionId, content, {
             onToken: (token) => {
                 if (isFirstToken) {
-                    const b = document.querySelector(`.message-wrapper[data-id="${streamingMessageId}"] .message-bubble`);
+                    const b = document.querySelector(`.message-wrapper[data-id="${myStreamId}"] .message-bubble`);
                     if (b) b.innerHTML = "";
                     isFirstToken = false;
                 }
-                streamingContent += token;
-                updateStreamingMessage(streamingMessageId, streamingContent);
+                myContent += token;
+                updateStreamingMessage(myStreamId, myContent);
                 scrollToBottom(messagesList);
             },
             onDone: () => {
                 state.isStreaming = false;
-                const wrapper = document.querySelector(`.message-wrapper[data-id="${streamingMessageId}"]`);
+                const wrapper = document.querySelector(`.message-wrapper[data-id="${myStreamId}"]`);
                 if (wrapper) wrapper.classList.remove("streaming");
-                streamingMessageId = null;
-                streamingContent = "";
             },
             onError: (err) => {
                 state.isStreaming = false;
-                const wrapper = document.querySelector(`.message-wrapper[data-id="${streamingMessageId}"]`);
+                const wrapper = document.querySelector(`.message-wrapper[data-id="${myStreamId}"]`);
                 if (wrapper) {
                     wrapper.classList.remove("streaming");
                     const bubble = wrapper.querySelector(".message-bubble");
                     if (bubble) bubble.innerHTML += `<br><span style="color:#f28b82">[错误] ${err.message}</span>`;
                 }
-                streamingMessageId = null;
-                streamingContent = "";
             },
         });
     } catch (err) {
         state.isStreaming = false;
         console.error("发送消息失败:", err);
-        const wrapper = document.querySelector(`.message-wrapper[data-id="${streamingMessageId}"]`);
+        const wrapper = document.querySelector(`.message-wrapper[data-id="${myStreamId}"]`);
         if (wrapper) {
             wrapper.classList.remove("streaming");
             const bubble = wrapper.querySelector(".message-bubble");
             if (bubble) bubble.innerHTML += `<br><span style="color:#f28b82">[错误] ${err.message}</span>`;
         }
-        streamingMessageId = null;
-        streamingContent = "";
     }
 }
 

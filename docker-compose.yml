@@ -1,0 +1,50 @@
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${CET_DB_NAME}
+      MYSQL_USER: ${CET_DB_USER}
+      MYSQL_PASSWORD: ${CET_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - mysql
+    environment:
+      CET_DB_HOST: mysql
+      CET_DB_PORT: 3306
+      CET_DB_USER: ${CET_DB_USER}
+      CET_DB_PASSWORD: ${CET_DB_PASSWORD}
+      CET_DB_NAME: ${CET_DB_NAME}
+      CET_MODEL_BASE_URL: ${CET_MODEL_BASE_URL}
+      CET_MODEL_API_KEY: ${CET_MODEL_API_KEY}
+      CET_MODEL_NAME: ${CET_MODEL_NAME}
+      CET_SESSION_SECRET_KEY: ${CET_SESSION_SECRET_KEY}
+      CET_COOKIE_SECURE: ${CET_COOKIE_SECURE:-false}
+      CET_CORS_ALLOWED_ORIGINS: ${CET_CORS_ALLOWED_ORIGINS:-http://localhost}
+    volumes:
+      - backend_uploads:/app/uploads
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  mysql_data:
+  backend_uploads:

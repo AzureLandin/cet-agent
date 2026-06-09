@@ -15,6 +15,17 @@
 
 当前不再依赖 `config.yaml` 或 `config.yaml.example` 作为运行时配置源。
 
+### Docker Compose 启动
+
+如果使用三容器部署：
+
+1. 复制项目根目录 `.env.docker.example` 为 `.env`
+2. 填写数据库、模型、会话等环境变量
+3. 在项目根目录执行 `docker compose up -d --build`
+
+部署后浏览器只需要访问前端入口：`http://localhost:8080`。
+前端静态资源由 nginx 提供，`/auth`、`/profile`、`/sessions`、`/health`、`/uploads` 会由 nginx 反向代理到后端容器。
+
 ---
 
 ## 1. 接口总览

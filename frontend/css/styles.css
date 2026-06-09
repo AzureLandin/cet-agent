@@ -132,11 +132,16 @@ html, body {
     display: none !important;
 }
 
-.material-symbols-outlined {
+.icon-btn i,
+.module-icon i,
+.new-chat-icon i,
+.avatar-upload-btn i,
+.auth-back i,
+.send-btn i,
+.session-delete-btn i {
     font-size: inherit;
     line-height: 1;
     vertical-align: middle;
-    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
 /* ===== Utility Classes ===== */
@@ -191,8 +196,8 @@ html, body {
 }
 
 /* 图标固定 20px 宽，8px 左偏移，保证展开/收起时位置不变 */
-.sidebar-header .icon-btn .material-symbols-outlined,
-.sidebar-footer .icon-btn .material-symbols-outlined,
+.sidebar-header .icon-btn i,
+.sidebar-footer .icon-btn i,
 .sidebar-header .new-chat-btn .new-chat-icon {
     display: inline-flex;
     justify-content: center;
@@ -625,37 +630,216 @@ html, body {
 
 /* ===== Settings Page ===== */
 #view-settings {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 20px;
+    display: block;
+    padding: 32px 40px 48px;
+    overflow-y: auto;
 }
 
-.settings-card {
+.settings-page {
+    width: 100%;
+    margin: 0;
+}
+
+.settings-header {
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.settings-header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    color: var(--text-primary);
+}
+
+.settings-subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.settings-section {
     background: var(--bg-card);
     border-radius: var(--radius-md);
-    padding: 32px;
-    width: 100%;
-    max-width: 480px;
+    padding: 12px 28px;
+    margin-bottom: 20px;
     box-shadow: var(--shadow-card);
 }
 
-.settings-card h2 {
-    font-size: 24px;
-    margin-bottom: 24px;
-}
-
-.setting-item {
-    margin-bottom: 20px;
-}
-
-.setting-item label {
-    display: block;
-    font-size: 14px;
+.section-title {
+    font-size: 13px;
+    font-weight: 600;
     color: var(--text-secondary);
-    margin-bottom: 8px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin: 16px 0 4px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
 }
 
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.settings-row:last-child {
+    border-bottom: none;
+}
+
+.settings-row-stack {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+}
+
+.row-label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+}
+
+.row-label-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.row-label-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.row-control {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 0;
+}
+
+.row-control-full {
+    width: 100%;
+    justify-content: flex-start;
+}
+
+.row-control input[type="text"] {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    width: 260px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.row-control input[type="text"]:focus {
+    border-color: var(--accent);
+}
+
+/* Themed <select> — used for exam level and inside .date-picker-group */
+select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-color: var(--bg-secondary);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'><path d='M1 1L6 6L11 1' stroke='%239aa0a6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 8px 36px 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s, background-color 0.2s;
+    min-width: 140px;
+}
+
+select:hover {
+    border-color: var(--text-secondary);
+}
+
+select:focus {
+    border-color: var(--accent);
+}
+
+select option {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.date-picker-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.date-picker-group input[type="number"] {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    outline: none;
+    text-align: center;
+    -moz-appearance: textfield;
+    transition: border-color 0.2s;
+}
+
+.date-picker-group input[type="number"]::-webkit-outer-spin-button,
+.date-picker-group input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.date-picker-group input[type="number"]:focus {
+    border-color: var(--accent);
+}
+
+.date-picker-group #exam-year {
+    width: 80px;
+}
+
+.date-picker-group #exam-day {
+    width: 64px;
+}
+
+.date-picker-group select {
+    min-width: 96px;
+}
+
+.settings-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 8px;
+    padding: 16px 0;
+}
+
+.settings-actions-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.settings-actions .info-text {
+    margin: 0;
+    flex: 1;
+}
+
+/* Legacy: radio-group/radio-label kept for backward compatibility */
 .radio-group {
     display: flex;
     gap: 16px;
@@ -667,39 +851,6 @@ html, body {
     gap: 6px;
     cursor: pointer;
     color: var(--text-primary);
-}
-
-.settings-card input[type="date"] {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    padding: 10px 14px;
-    border-radius: var(--radius-sm);
-    font-size: 16px;
-    width: 100%;
-    outline: none;
-}
-
-.setting-actions {
-    display: flex;
-    gap: 12px;
-    margin-top: 24px;
-}
-
-.settings-card input[type="text"] {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    padding: 10px 14px;
-    border-radius: var(--radius-sm);
-    font-size: 16px;
-    width: 100%;
-    outline: none;
-    transition: border-color 0.2s;
-}
-
-.settings-card input[type="text"]:focus {
-    border-color: var(--accent);
 }
 
 .avatar-picker {
@@ -750,7 +901,7 @@ html, body {
     color: var(--text-primary);
 }
 
-.avatar-upload-btn .material-symbols-outlined {
+.avatar-upload-btn i {
     font-size: 16px;
 }
 
@@ -1219,4 +1370,40 @@ html, body {
 
 .confirm-btn-ok:hover {
     opacity: 0.85;
+}
+
+/* ===== Scrollbars (thin themed, always visible) ===== */
+
+.messages-list,
+.view-container,
+.sidebar-content {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+.messages-list::-webkit-scrollbar,
+.view-container::-webkit-scrollbar,
+.sidebar-content::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.messages-list::-webkit-scrollbar-track,
+.view-container::-webkit-scrollbar-track,
+.sidebar-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.messages-list::-webkit-scrollbar-thumb,
+.view-container::-webkit-scrollbar-thumb,
+.sidebar-content::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.messages-list::-webkit-scrollbar-thumb:hover,
+.view-container::-webkit-scrollbar-thumb:hover,
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
 }

@@ -1,4 +1,5 @@
 import bcrypt
+import pymysql
 import secrets
 from datetime import datetime, timedelta, timezone
 from flask import Blueprint, request, jsonify, make_response, g
@@ -25,10 +26,10 @@ def create_session_id() -> str:
     return secrets.token_urlsafe(32)
 
 
-def create_auth_session(db: DB, user_id: int) -> str:
+def create_auth_session(cur, user_id: int) -> str:
     session_id = create_session_id()
     expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_DURATION_DAYS)
-    db.execute(
+    cur.execute(
         "INSERT INTO auth_sessions (user_id, session_id, expires_at) VALUES (%s, %s, %s)",
         (user_id, session_id, expires_at),
     )
@@ -63,20 +64,25 @@ def register():
         return jsonify(error_code="INVALID_USERNAME", message="Username must be 3-50 characters."), 400
     if not password or len(password) < 6:
         return jsonify(error_code="INVALID_PASSWORD", message="Password must be at least 6 characters."), 400
-
-    existing = db.fetchone("SELECT id FROM users WHERE username = %s", (username,))
-    if existing:
+    if db.fetchone("SELECT id FROM users WHERE username = %s", (username,)):
         return jsonify(error_code="USERNAME_TAKEN", message="Username already exists."), 409
 
     password_hash = hash_password(password)
-    user_id = db.lastrowid(
-        "INSERT INTO users (username, password_hash) VALUES (%s, %s)",
-        (username, password_hash),
-    )
-    # create empty profile row
-    db.execute("INSERT INTO profiles (user_id) VALUES (%s)", (user_id,))
 
-    session_id = create_auth_session(db, user_id)
+    try:
+        with db.transaction() as cur:
+            cur.execute(
+                "INSERT INTO users (username, password_hash) VALUES (%s, %s)",
+                (username, password_hash),
+            )
+            user_id = cur.lastrowid
+            cur.execute("INSERT INTO profiles (user_id) VALUES (%s)", (user_id,))
+            session_id = create_auth_session(cur, user_id)
+    except pymysql.IntegrityError as err:
+        if err.args and err.args[0] == 1062:
+            return jsonify(error_code="USERNAME_TAKEN", message="Username already exists."), 409
+        raise
+
     resp = make_response(jsonify(user_id=user_id, username=username))
     resp.set_cookie(
         SESSION_COOKIE_NAME,
@@ -103,7 +109,9 @@ def login():
     if not user or not check_password(password, user["password_hash"]):
         return jsonify(error_code="INVALID_CREDENTIALS", message="Invalid username or password."), 401
 
-    session_id = create_auth_session(db, user["id"])
+    with db.transaction() as cur:
+        session_id = create_auth_session(cur, user["id"])
+
     resp = make_response(jsonify(user_id=user["id"], username=username))
     resp.set_cookie(
         SESSION_COOKIE_NAME,

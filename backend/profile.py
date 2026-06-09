@@ -19,10 +19,18 @@ def _uploads_dir():
     return d
 
 
+def ensure_profile_row(target, user_id):
+    target.execute(
+        "INSERT INTO profiles (user_id) VALUES (%s) ON DUPLICATE KEY UPDATE user_id = user_id",
+        (user_id,),
+    )
+
+
 @profile_bp.get("")
 def get_profile():
     db: DB = g.db
     user_id = g.user_id
+    ensure_profile_row(db, user_id)
     row = db.fetchone(
         "SELECT exam_level, exam_date, display_name, avatar_color, avatar_url FROM profiles WHERE user_id = %s",
         (user_id,),
@@ -44,44 +52,53 @@ def update_profile():
     db: DB = g.db
     user_id = g.user_id
     data = request.get_json(silent=True) or {}
-    exam_level = data.get("exam_level")
-    exam_date = data.get("exam_date")
-    display_name = data.get("display_name")
-    avatar_color = data.get("avatar_color")
 
-    if exam_level is not None and exam_level not in VALID_EXAM_LEVELS:
-        return jsonify(error_code="INVALID_EXAM_LEVEL", message="exam_level must be CET4 or CET6."), 400
+    updates: list[str] = []
+    params: list = []
 
-    if exam_date is not None and exam_date != "":
-        from datetime import date
-        try:
-            date.fromisoformat(exam_date)
-        except ValueError:
-            return jsonify(error_code="INVALID_DATE", message="exam_date must be a valid ISO date (YYYY-MM-DD)."), 400
-    else:
-        exam_date = None
+    if "exam_level" in data:
+        exam_level = data.get("exam_level")
+        if exam_level is not None and exam_level not in VALID_EXAM_LEVELS:
+            return jsonify(error_code="INVALID_EXAM_LEVEL", message="exam_level must be CET4 or CET6."), 400
+        updates.append("exam_level = %s")
+        params.append(exam_level)
 
-    if display_name is not None:
-        display_name = display_name.strip()
-        if len(display_name) > 30:
-            return jsonify(error_code="INVALID_DISPLAY_NAME", message="display_name must be at most 30 characters."), 400
+    if "exam_date" in data:
+        exam_date = data.get("exam_date")
+        if exam_date is not None and exam_date != "":
+            from datetime import date
+            try:
+                date.fromisoformat(exam_date)
+            except ValueError:
+                return jsonify(error_code="INVALID_DATE", message="exam_date must be a valid ISO date (YYYY-MM-DD)."), 400
+        else:
+            exam_date = None
+        updates.append("exam_date = %s")
+        params.append(exam_date)
 
-    if avatar_color is not None and not AVATAR_COLOR_RE.match(avatar_color):
-        return jsonify(error_code="INVALID_COLOR", message="avatar_color must be a hex color like #4285f4."), 400
+    if "display_name" in data:
+        display_name = data.get("display_name")
+        if display_name is not None:
+            display_name = display_name.strip()
+            if len(display_name) > 30:
+                return jsonify(error_code="INVALID_DISPLAY_NAME", message="display_name must be at most 30 characters."), 400
+        updates.append("display_name = %s")
+        params.append(display_name)
 
-    db.execute(
-        """
-        INSERT INTO profiles (user_id, exam_level, exam_date, display_name, avatar_color, avatar_url)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        ON DUPLICATE KEY UPDATE
-            exam_level = VALUES(exam_level),
-            exam_date = VALUES(exam_date),
-            display_name = VALUES(display_name),
-            avatar_color = VALUES(avatar_color),
-            avatar_url = VALUES(avatar_url)
-        """,
-        (user_id, exam_level, exam_date, display_name, avatar_color, None),
-    )
+    if "avatar_color" in data:
+        avatar_color = data.get("avatar_color")
+        if avatar_color is not None and not AVATAR_COLOR_RE.match(avatar_color):
+            return jsonify(error_code="INVALID_COLOR", message="avatar_color must be a hex color like #4285f4."), 400
+        updates.append("avatar_color = %s")
+        params.append(avatar_color)
+
+    ensure_profile_row(db, user_id)
+    if updates:
+        params.append(user_id)
+        db.execute(
+            f"UPDATE profiles SET {', '.join(updates)} WHERE user_id = %s",
+            tuple(params),
+        )
     return jsonify(message="Profile updated.")
 
 
@@ -104,18 +121,59 @@ def upload_avatar():
     if request.content_length and request.content_length > MAX_AVATAR_SIZE:
         return jsonify(error_code="FILE_TOO_LARGE", message="Max file size is 2 MB."), 400
 
-    # Delete old avatar file if exists
-    old = db.fetchone("SELECT avatar_url FROM profiles WHERE user_id = %s", (user_id,))
-    if old and old["avatar_url"]:
-        old_path = os.path.join(_uploads_dir(), os.path.basename(old["avatar_url"]))
-        if os.path.isfile(old_path):
-            os.remove(old_path)
-
+    # 1. Persist new file first
     filename = f"{uuid.uuid4().hex}.{ext}"
     filepath = os.path.join(_uploads_dir(), filename)
     file.save(filepath)
-
     url = f"/uploads/avatars/{filename}"
-    db.execute("UPDATE profiles SET avatar_url = %s WHERE user_id = %s", (url, user_id))
+
+    # 2. Read old URL + write new URL atomically. On DB failure, drop the new file.
+    try:
+        with db.transaction() as cur:
+            ensure_profile_row(cur, user_id)
+            cur.execute("SELECT avatar_url FROM profiles WHERE user_id = %s", (user_id,))
+            old = cur.fetchone()
+            cur.execute("UPDATE profiles SET avatar_url = %s WHERE user_id = %s", (url, user_id))
+    except Exception:
+        if os.path.isfile(filepath):
+            try:
+                os.remove(filepath)
+            except OSError:
+                pass
+        raise
+
+    # 3. DB committed — best-effort delete of the previous file
+    if old and old["avatar_url"]:
+        old_path = os.path.join(_uploads_dir(), os.path.basename(old["avatar_url"]))
+        if os.path.isfile(old_path):
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass
 
     return jsonify(avatar_url=url)
+
+
+@profile_bp.delete("/avatar")
+def delete_avatar():
+    db: DB = g.db
+    user_id = g.user_id
+
+    # 1. Read old URL + clear it atomically
+    with db.transaction() as cur:
+        ensure_profile_row(cur, user_id)
+        cur.execute("SELECT avatar_url FROM profiles WHERE user_id = %s", (user_id,))
+        row = cur.fetchone()
+        if not row["avatar_url"]:
+            return jsonify(message="Avatar deleted.")
+        cur.execute("UPDATE profiles SET avatar_url = NULL WHERE user_id = %s", (user_id,))
+
+    # 2. DB committed — best-effort delete of the file
+    old_path = os.path.join(_uploads_dir(), os.path.basename(row["avatar_url"]))
+    if os.path.isfile(old_path):
+        try:
+            os.remove(old_path)
+        except OSError:
+            pass
+
+    return jsonify(message="Avatar deleted.")

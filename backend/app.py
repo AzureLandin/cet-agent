@@ -1,3 +1,4 @@
+import importlib.util
 import os
 from datetime import datetime, timezone
 from flask import Flask, g, request, jsonify, make_response
@@ -7,9 +8,20 @@ from config import load_config
 from db import DB
 from services.model_client import ModelClient
 from auth import auth_bp, get_user_by_session, SESSION_COOKIE_NAME
-from profile import profile_bp
 from sessions import sessions_bp
 from messages import messages_bp
+
+
+def _load_profile_blueprint():
+    module_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "profile.py")
+    spec = importlib.util.spec_from_file_location("cet_agent_profile", module_path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module.profile_bp
+
+
+profile_bp = _load_profile_blueprint()
 
 
 def create_app():
