@@ -31,6 +31,19 @@ def _get_int(name: str, default: int) -> int:
         raise ValueError(f"Environment variable {name} must be an integer.") from exc
 
 
+def _get_probability(name: str, default: float) -> float:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return default
+    try:
+        probability = float(value)
+    except ValueError as exc:
+        raise ValueError(f"Environment variable {name} must be a number between 0 and 1.") from exc
+    if probability < 0 or probability > 1:
+        raise ValueError(f"Environment variable {name} must be between 0 and 1.")
+    return probability
+
+
 def _get_allowed_origins() -> list[str]:
     value = os.getenv("CET_CORS_ALLOWED_ORIGINS")
     if value is None or value.strip() == "":
@@ -55,6 +68,7 @@ def load_config() -> dict:
         "session": {
             "secret_key": _require_env("CET_SESSION_SECRET_KEY"),
             "cookie_secure": _get_bool("CET_COOKIE_SECURE", False),
+            "auth_session_cleanup_probability": _get_probability("CET_AUTH_SESSION_CLEANUP_PROBABILITY", 0.01),
         },
         "cors": {
             "allowed_origins": _get_allowed_origins(),

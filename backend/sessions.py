@@ -73,15 +73,29 @@ def get_session(session_id: int):
     if not session_row:
         return jsonify(error_code="NOT_FOUND", message="Session not found."), 404
 
+    # Pagination support
+    limit = request.args.get("limit", 200, type=int)
+    offset = request.args.get("offset", 0, type=int)
+    limit = min(limit, 500)  # Cap at 500
+
     messages = db.fetchall(
         """
         SELECT id, role, content, created_at
         FROM messages
         WHERE session_id = %s
         ORDER BY created_at ASC
+        LIMIT %s OFFSET %s
         """,
+        (session_id, limit, offset),
+    )
+
+    # Get total count for pagination
+    total_row = db.fetchone(
+        "SELECT COUNT(*) as total FROM messages WHERE session_id = %s",
         (session_id,),
     )
+    total = total_row["total"] if total_row else 0
+
     return jsonify(
         id=session_row["id"],
         module=session_row["module"],
@@ -96,6 +110,9 @@ def get_session(session_id: int):
             }
             for m in messages
         ],
+        total=total,
+        limit=limit,
+        offset=offset,
     )
 
 

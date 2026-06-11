@@ -1,12 +1,13 @@
 /**
- * 使用本地托管的 marked 渲染 Markdown
+ * 使用本地托管的 marked 渲染 Markdown，并通过 DOMPurify 清洗防止 XSS
  */
 function renderMarkdown(text) {
     if (!text) return "";
-    return marked.parse(text, {
+    const rawHtml = marked.parse(text, {
         breaks: true,
         gfm: true,
     });
+    return DOMPurify.sanitize(rawHtml);
 }
 
 /**

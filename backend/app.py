@@ -1,5 +1,6 @@
 import importlib.util
 import os
+import random
 from datetime import datetime, timezone
 from flask import Flask, g, request, jsonify, make_response
 from flask_cors import CORS
@@ -7,7 +8,7 @@ from flask_cors import CORS
 from config import load_config
 from db import DB
 from services.model_client import ModelClient
-from auth import auth_bp, get_user_by_session, SESSION_COOKIE_NAME
+from auth import auth_bp, get_user_by_session, cleanup_expired_auth_sessions, SESSION_COOKIE_NAME
 from sessions import sessions_bp
 from messages import messages_bp
 
@@ -36,27 +37,34 @@ def create_app():
     # DB & Model
     db = DB(config["db"])
     if not db.health_check():
-        raise RuntimeError("Database health check failed. Please verify config.yaml settings.")
+        raise RuntimeError("Database health check failed. Please verify .env database settings.")
 
     required_tables = ["users", "profiles", "sessions", "messages", "auth_sessions"]
     existing_tables = {next(iter(row.values())) for row in db.fetchall("SHOW TABLES")}
     missing = [t for t in required_tables if t not in existing_tables]
+
     if missing:
         schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schema.sql")
+
         if not os.path.isfile(schema_path):
             raise RuntimeError(f"Missing tables {missing} but schema.sql not found at {schema_path}")
+        
         with open(schema_path, "r", encoding="utf-8") as f:
             sql = f.read()
+
         statements = [s.strip() for s in sql.split(";") if s.strip() and not s.strip().startswith("--")]
+        
         for stmt in statements:
             if stmt.upper().startswith("CREATE DATABASE") or stmt.upper().startswith("USE "):
                 continue
             db.execute(stmt)
+
         print(f"Auto-created tables: {', '.join(missing)}")
 
     model_client = ModelClient(config["model"])
     app.extensions["db"] = db
     app.extensions["model_client"] = model_client
+    auth_session_cleanup_probability = config.get("session", {}).get("auth_session_cleanup_probability", 0.01)
 
     # Propagate cookie_secure to auth module
     import auth as auth_module
@@ -82,6 +90,11 @@ def create_app():
 
         session_id = request.cookies.get(SESSION_COOKIE_NAME)
         if session_id:
+            if random.random() < auth_session_cleanup_probability:
+                try:
+                    cleanup_expired_auth_sessions(db)
+                except Exception:
+                    pass  # Non-critical cleanup; ignore failures
             user = get_user_by_session(db, session_id)
             if user:
                 g.user_id = user["id"]
@@ -90,20 +103,14 @@ def create_app():
         if g.user_id is None:
             return jsonify(error_code="UNAUTHORIZED", message="Authentication required."), 401
 
-    @app.after_request
-    def after_request(response):
-        # Ensure cookie secure flag matches config
-        cookie_secure = config.get("session", {}).get("cookie_secure", False)
-        if response.headers.get("Set-Cookie"):
-            # Flask handles Set-Cookie; we set secure on login/logout explicitly
-            pass
-        return response
-
-    # Serve uploaded avatars
+    # Serve uploaded avatars with path traversal protection
     uploads_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
     @app.route("/uploads/<path:filename>")
     def uploaded_file(filename):
-        from flask import send_from_directory
+        from flask import send_from_directory, abort
+        # Prevent path traversal: only serve files from avatars subdirectory
+        if not filename.startswith("avatars/"):
+            abort(403)
         return send_from_directory(uploads_dir, filename)
 
     # Register blueprints

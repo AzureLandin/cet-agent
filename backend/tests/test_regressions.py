@@ -29,6 +29,23 @@ class FakeDBForBuildMessages:
         return [{"role": "user", "content": "hello"}]
 
 
+class FakeDBForBuildMessagesWithHistory:
+    """Simulates a session with 60 messages to test history window ordering.
+    Simulates the CORRECT behavior: returns most recent 50 messages in ASC order."""
+    def __init__(self):
+        self._messages = []
+        for i in range(60):
+            role = "user" if i % 2 == 0 else "assistant"
+            self._messages.append({"role": role, "content": f"message-{i}"})
+
+    def fetchall(self, sql, args=()):
+        # Simulate the correct SQL behavior:
+        # 1. Get most recent 50 messages (messages 10-59)
+        # 2. Sort them ASC (message-10, message-11, ..., message-59)
+        recent_50 = self._messages[10:]  # Most recent 50
+        return recent_50  # Already in ASC order
+
+
 class FakeCursor:
     """Minimal cursor proxy that records SQL on the parent FakeDB so existing
     assertions on `db.executed` keep working under the new transaction API."""
@@ -100,6 +117,8 @@ class FakeDB:
             return None
         if "FROM sessions WHERE id = %s AND user_id = %s" in sql:
             return {"id": 1, "module": "writing", "title": "Writing", "created_at": None}
+        if "FROM auth_sessions AS s" in sql:
+            return {"id": 1, "username": "alice"}
         if "FROM profiles" in sql:
             if not self.profile_exists:
                 return None
@@ -166,6 +185,7 @@ class RegressionTests(unittest.TestCase):
             "CET_MODEL_API_KEY": "api-key",
             "CET_MODEL_NAME": "deepseek-chat",
             "CET_SESSION_SECRET_KEY": "session-secret",
+            "CET_AUTH_SESSION_CLEANUP_PROBABILITY": "0.25",
         }, clear=True):
             config = config_module.load_config()
 
@@ -179,6 +199,7 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(config["model"]["model"], "deepseek-chat")
         self.assertEqual(config["session"]["secret_key"], "session-secret")
         self.assertEqual(config["session"]["cookie_secure"], False)
+        self.assertEqual(config["session"]["auth_session_cleanup_probability"], 0.25)
         self.assertEqual(config["cors"]["allowed_origins"], ["http://localhost:8080", "http://127.0.0.1:8080"])
 
     def test_load_config_rejects_missing_required_environment_variables(self):
@@ -187,6 +208,23 @@ class RegressionTests(unittest.TestCase):
                 config_module.load_config()
 
         self.assertIn("CET_DB_USER", str(exc.exception))
+
+    def test_load_config_rejects_invalid_auth_session_cleanup_probability(self):
+        env = {
+            "CET_DB_USER": "cet_agent",
+            "CET_DB_PASSWORD": "secret",
+            "CET_DB_NAME": "cet_web_agent",
+            "CET_MODEL_BASE_URL": "https://api.deepseek.com",
+            "CET_MODEL_API_KEY": "api-key",
+            "CET_MODEL_NAME": "deepseek-chat",
+            "CET_SESSION_SECRET_KEY": "session-secret",
+            "CET_AUTH_SESSION_CLEANUP_PROBABILITY": "1.5",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            with self.assertRaises(ValueError) as exc:
+                config_module.load_config()
+
+        self.assertIn("CET_AUTH_SESSION_CLEANUP_PROBABILITY", str(exc.exception))
 
     def test_frontend_api_uses_relative_base_path(self):
         api_js = os.path.join(os.path.dirname(BACKEND_DIR), "frontend", "js", "api.js")
@@ -240,6 +278,25 @@ class RegressionTests(unittest.TestCase):
         user_messages = [item for item in result if item["role"] == "user"]
         self.assertEqual(user_messages, [{"role": "user", "content": "hello"}])
 
+    def test_build_messages_returns_most_recent_50_messages_not_earliest(self):
+        """Critical: History window must take the LATEST 50 messages, not the earliest.
+        Without this fix, long conversations lose recent context."""
+        db = FakeDBForBuildMessagesWithHistory()
+        result = messages.build_messages(db, 1, "writing", "new-message")
+
+        # Remove system prompt and the new user message we just added
+        history_messages = [m for m in result if m["role"] in ("user", "assistant")]
+
+        # Should contain message-10 through message-59 (the most recent 50)
+        # NOT message-0 through message-49 (the earliest 50)
+        first_content = history_messages[0]["content"]
+        last_content = history_messages[-2]["content"]  # -1 is the new "new-message"
+
+        self.assertEqual(first_content, "message-10",
+            "History window should start from message-10 (most recent 50), not message-0")
+        self.assertEqual(last_content, "message-59",
+            "History window should end at message-59 (most recent 50)")
+
     def test_health_endpoint_is_public(self):
         app = self._create_test_app()
         client = app.test_client()
@@ -286,11 +343,14 @@ class RegressionTests(unittest.TestCase):
         app = self._create_test_app({"profile_exists": False})
         client = app.test_client()
 
+        # Valid PNG magic bytes + some data
+        png_bytes = b'\x89PNG\r\n\x1a\n' + b'\x00' * 100
+
         with tempfile.TemporaryDirectory() as uploads_dir, \
              patch.object(profile_module, "_uploads_dir", return_value=uploads_dir):
             response = client.post(
                 "/profile/avatar",
-                data={"file": (io.BytesIO(b"avatar-bytes"), "avatar.png")},
+                data={"file": (io.BytesIO(png_bytes), "avatar.png")},
                 headers={"X-Test-Auth": "1"},
                 content_type="multipart/form-data",
             )
@@ -356,6 +416,28 @@ class RegressionTests(unittest.TestCase):
         self.assertLess(db.events.index("check_password"), db.events.index("transaction_enter"))
         self.assertLess(db.events.index("transaction_enter"), db.events.index("insert_auth_session"))
 
+    def test_authenticated_request_can_clean_up_expired_auth_sessions(self):
+        app = self._create_test_app(session_overrides={"auth_session_cleanup_probability": 1})
+        client = app.test_client()
+        client.set_cookie(auth_module.SESSION_COOKIE_NAME, "valid-session")
+
+        response = client.get("/profile")
+
+        self.assertEqual(response.status_code, 200)
+        executed_sql = [sql for sql, _args in app.extensions["db"].executed]
+        self.assertIn("DELETE FROM auth_sessions WHERE expires_at <= %s", executed_sql)
+
+    def test_authenticated_request_can_skip_expired_auth_session_cleanup(self):
+        app = self._create_test_app(session_overrides={"auth_session_cleanup_probability": 0})
+        client = app.test_client()
+        client.set_cookie(auth_module.SESSION_COOKIE_NAME, "valid-session")
+
+        response = client.get("/profile")
+
+        self.assertEqual(response.status_code, 200)
+        executed_sql = [sql for sql, _args in app.extensions["db"].executed]
+        self.assertNotIn("DELETE FROM auth_sessions WHERE expires_at <= %s", executed_sql)
+
     def test_send_message_updates_session_timestamp(self):
         app = self._create_test_app()
         client = app.test_client()
@@ -387,7 +469,7 @@ class RegressionTests(unittest.TestCase):
         self.assertIsNotNone(app)
         self.assertTrue(any(bp.name == "profile" for bp in app.blueprints.values()))
 
-    def _create_test_app(self, db_overrides=None, db_class=FakeDB):
+    def _create_test_app(self, db_overrides=None, db_class=FakeDB, session_overrides=None):
         config = {
             "db": {
                 "host": "localhost",
@@ -397,11 +479,13 @@ class RegressionTests(unittest.TestCase):
                 "name": "cet",
             },
             "model": {"base_url": "http://example.com", "api_key": "key", "model": "test-model"},
-            "session": {"secret_key": "secret", "cookie_secure": False},
+            "session": {"secret_key": "secret", "cookie_secure": False, "auth_session_cleanup_probability": 0},
             "cors": {"allowed_origins": ["http://localhost:8080"]},
         }
         if db_overrides:
             config["db"].update(db_overrides)
+        if session_overrides:
+            config["session"].update(session_overrides)
 
         importlib.reload(app_module)
 

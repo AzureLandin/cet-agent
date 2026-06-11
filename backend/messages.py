@@ -35,11 +35,14 @@ def build_messages(db: DB, session_id: int, module: str, user_content: str, prof
 
     history = db.fetchall(
         """
-        SELECT role, content
-        FROM messages
-        WHERE session_id = %s
+        SELECT role, content FROM (
+            SELECT role, content, created_at
+            FROM messages
+            WHERE session_id = %s
+            ORDER BY created_at DESC
+            LIMIT %s
+        ) sub
         ORDER BY created_at ASC
-        LIMIT %s
         """,
         (session_id, MAX_HISTORY_MESSAGES),
     )

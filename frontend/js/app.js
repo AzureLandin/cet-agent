@@ -125,6 +125,9 @@ async function handleLogout() {
     state.profile = null;
     state.sessions = { writing: [], reading: [], translation: [] };
     state.currentSession = null;
+    state.isStreaming = false;
+    delete state._pendingSession;
+    delete state._pendingMessage;
     navigateTo("login");
 }
 

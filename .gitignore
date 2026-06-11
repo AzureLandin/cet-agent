@@ -7,3 +7,5 @@ __pycache__/
 docs/
 .claude/
 review/
+cookies.txt
+backend/uploads/

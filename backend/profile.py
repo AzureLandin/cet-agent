@@ -4,6 +4,15 @@ import uuid
 from flask import Blueprint, request, jsonify, g
 from db import DB
 
+# MIME type magic bytes for image validation
+MAGIC_BYTES = {
+    b'\x89PNG\r\n\x1a\n': 'image/png',
+    b'\xff\xd8\xff': 'image/jpeg',
+    b'GIF87a': 'image/gif',
+    b'GIF89a': 'image/gif',
+    b'RIFF': 'image/webp',  # WebP starts with RIFF
+}
+
 profile_bp = Blueprint("profile", __name__, url_prefix="/profile")
 
 VALID_EXAM_LEVELS = {"CET4", "CET6"}
@@ -19,6 +28,17 @@ def _uploads_dir():
     return d
 
 
+def _check_mime_type(file_bytes: bytes) -> str:
+    """Check MIME type from file magic bytes. Returns MIME type or empty string."""
+    for magic, mime in MAGIC_BYTES.items():
+        if file_bytes.startswith(magic):
+            return mime
+    # Special check for WebP: RIFF....WEBP
+    if file_bytes[:4] == b'RIFF' and file_bytes[8:12] == b'WEBP':
+        return 'image/webp'
+    return ""
+
+
 def ensure_profile_row(target, user_id):
     target.execute(
         "INSERT INTO profiles (user_id) VALUES (%s) ON DUPLICATE KEY UPDATE user_id = user_id",
@@ -30,11 +50,17 @@ def ensure_profile_row(target, user_id):
 def get_profile():
     db: DB = g.db
     user_id = g.user_id
-    ensure_profile_row(db, user_id)
     row = db.fetchone(
         "SELECT exam_level, exam_date, display_name, avatar_color, avatar_url FROM profiles WHERE user_id = %s",
         (user_id,),
     )
+    if not row:
+        # Auto-heal: create profile row if missing (edge case from old data)
+        ensure_profile_row(db, user_id)
+        row = db.fetchone(
+            "SELECT exam_level, exam_date, display_name, avatar_color, avatar_url FROM profiles WHERE user_id = %s",
+            (user_id,),
+        )
     if not row:
         return jsonify(error_code="PROFILE_NOT_FOUND", message="Profile not found."), 404
     return jsonify(
@@ -118,13 +144,22 @@ def upload_avatar():
     if ext not in ALLOWED_EXTENSIONS:
         return jsonify(error_code="INVALID_FILE_TYPE", message=f"Allowed: {', '.join(ALLOWED_EXTENSIONS)}."), 400
 
-    if request.content_length and request.content_length > MAX_AVATAR_SIZE:
+    # Read file content to check size and MIME type
+    file_bytes = file.read()
+    if len(file_bytes) > MAX_AVATAR_SIZE:
         return jsonify(error_code="FILE_TOO_LARGE", message="Max file size is 2 MB."), 400
+
+    # Validate MIME type via magic bytes
+    mime_type = _check_mime_type(file_bytes)
+    allowed_mimes = {"image/png", "image/jpeg", "image/gif", "image/webp"}
+    if mime_type not in allowed_mimes:
+        return jsonify(error_code="INVALID_FILE_TYPE", message="File content does not match an allowed image type."), 400
 
     # 1. Persist new file first
     filename = f"{uuid.uuid4().hex}.{ext}"
     filepath = os.path.join(_uploads_dir(), filename)
-    file.save(filepath)
+    with open(filepath, 'wb') as f:
+        f.write(file_bytes)
     url = f"/uploads/avatars/{filename}"
 
     # 2. Read old URL + write new URL atomically. On DB failure, drop the new file.

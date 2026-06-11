@@ -18,6 +18,9 @@ function handleRoute() {
     const path = hash.replace("#", "").replace(/^\//, "");
     const segments = path.split("/").filter(Boolean);
 
+    // 重置流式状态（防止导航后卡住）
+    state.isStreaming = false;
+
     // 隐藏所有视图
     document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
 

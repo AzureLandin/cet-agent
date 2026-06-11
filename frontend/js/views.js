@@ -290,9 +290,9 @@ function showSettingsView() {
         updateAvatarPreview();
     }
 
-    nameInput.addEventListener("input", updateAvatarPreview);
+    nameInput.oninput = updateAvatarPreview;
 
-    fileInput.addEventListener("change", async () => {
+    fileInput.onchange = async () => {
         msgEl.textContent = "";
         const file = fileInput.files[0];
         if (!file) return;
@@ -305,9 +305,9 @@ function showSettingsView() {
             msgEl.textContent = "上传失败: " + err.message;
         }
         fileInput.value = "";
-    });
+    };
 
-    resetBtn.addEventListener("click", async () => {
+    resetBtn.onclick = async () => {
         msgEl.textContent = "";
         try {
             await deleteAvatar();
@@ -359,6 +359,12 @@ function showSettingsView() {
 /* ===== 对话页 ===== */
 
 function showChatView(module, sessionId) {
+    // Validate sessionId
+    if (isNaN(sessionId)) {
+        navigateTo("home");
+        return;
+    }
+
     const view = document.getElementById("view-chat");
     view.classList.remove("hidden");
 
@@ -392,7 +398,11 @@ function showChatView(module, sessionId) {
     // 绑定发送
     const doSend = () => {
         const content = input.value.trim();
-        if (!content || state.isStreaming) return;
+        if (!content) return;
+        if (state.isStreaming) {
+            showToast("正在回复中，请稍候", "info");
+            return;
+        }
         input.value = "";
         autoResizeTextarea(input);
         sendChatMessage(sessionId, content);
@@ -436,7 +446,7 @@ async function sendChatMessage(sessionId, content) {
 
     // 1. 添加用户消息到 UI
     const userMsg = {
-        id: Date.now(),
+        id: Date.now() + Math.random(),
         role: "user",
         content: content,
         created_at: new Date().toISOString(),
@@ -445,7 +455,7 @@ async function sendChatMessage(sessionId, content) {
     scrollToBottom(messagesList);
 
     // 2. 创建 AI 消息占位符（含思考中指示器）
-    const myStreamId = Date.now() + 1;
+    const myStreamId = Date.now() + Math.random();
     let myContent = "";
     let isFirstToken = true;
     const aiMsg = {
@@ -466,6 +476,18 @@ async function sendChatMessage(sessionId, content) {
 
     state.isStreaming = true;
 
+    // Debounce streaming updates for performance
+    let pendingRender = null;
+    const RENDER_INTERVAL_MS = 50;
+    const scheduleRender = () => {
+        if (pendingRender) return;
+        pendingRender = setTimeout(() => {
+            pendingRender = null;
+            updateStreamingMessage(myStreamId, myContent);
+            scrollToBottom(messagesList);
+        }, RENDER_INTERVAL_MS);
+    };
+
     // 3. 发送 SSE 请求
     try {
         await sendMessage(sessionId, content, {
@@ -476,10 +498,15 @@ async function sendChatMessage(sessionId, content) {
                     isFirstToken = false;
                 }
                 myContent += token;
-                updateStreamingMessage(myStreamId, myContent);
-                scrollToBottom(messagesList);
+                scheduleRender();
             },
             onDone: () => {
+                // Final render to ensure all content is displayed
+                if (pendingRender) {
+                    clearTimeout(pendingRender);
+                    pendingRender = null;
+                }
+                updateStreamingMessage(myStreamId, myContent);
                 state.isStreaming = false;
                 const wrapper = document.querySelector(`.message-wrapper[data-id="${myStreamId}"]`);
                 if (wrapper) wrapper.classList.remove("streaming");
@@ -490,7 +517,14 @@ async function sendChatMessage(sessionId, content) {
                 if (wrapper) {
                     wrapper.classList.remove("streaming");
                     const bubble = wrapper.querySelector(".message-bubble");
-                    if (bubble) bubble.innerHTML += `<br><span style="color:#f28b82">[错误] ${err.message}</span>`;
+                    if (bubble) {
+                        const br = document.createElement("br");
+                        const errorSpan = document.createElement("span");
+                        errorSpan.style.color = "#f28b82";
+                        errorSpan.textContent = `[错误] ${err.message}`;
+                        bubble.appendChild(br);
+                        bubble.appendChild(errorSpan);
+                    }
                 }
             },
         });
@@ -501,7 +535,14 @@ async function sendChatMessage(sessionId, content) {
         if (wrapper) {
             wrapper.classList.remove("streaming");
             const bubble = wrapper.querySelector(".message-bubble");
-            if (bubble) bubble.innerHTML += `<br><span style="color:#f28b82">[错误] ${err.message}</span>`;
+            if (bubble) {
+                const br = document.createElement("br");
+                const errorSpan = document.createElement("span");
+                errorSpan.style.color = "#f28b82";
+                errorSpan.textContent = `[错误] ${err.message}`;
+                bubble.appendChild(br);
+                bubble.appendChild(errorSpan);
+            }
         }
     }
 }

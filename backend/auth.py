@@ -49,6 +49,10 @@ def get_user_by_session(db: DB, session_id: str):
     return row
 
 
+def cleanup_expired_auth_sessions(db: DB) -> int:
+    return db.execute("DELETE FROM auth_sessions WHERE expires_at <= %s", (datetime.now(timezone.utc),))
+
+
 def delete_auth_session(db: DB, session_id: str):
     db.execute("DELETE FROM auth_sessions WHERE session_id = %s", (session_id,))
 

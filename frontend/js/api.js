@@ -18,7 +18,7 @@ async function request(path, options = {}) {
         err.status = 401;
         throw err;
     }
-
+    
     if (!response.ok) {
         const errBody = await response.json().catch(() => ({}));
         const err = new Error(errBody.message || `HTTP ${response.status}`);
