@@ -1,53 +1,133 @@
-import pymysql
-from pymysql.cursors import DictCursor
+from __future__ import annotations
+
+import os
+import sqlite3
+import threading
 from contextlib import contextmanager
-from dbutils.pooled_db import PooledDB
+
+
+def _translate_sql(sql: str) -> str:
+    """Translate MySQL-style %s placeholders to SQLite ? placeholders."""
+    if "%s" in sql:
+        return sql.replace("%s", "?")
+    return sql
+
+
+def _row_to_dict(row):
+    if row is None:
+        return None
+    if isinstance(row, sqlite3.Row):
+        return dict(row)
+    return row
+
+
+class _DictCursorWrapper:
+    """Wraps a sqlite3.Cursor so fetchone/fetchall return dicts and %s translates to ?."""
+
+    def __init__(self, cursor: sqlite3.Cursor):
+        self._cur = cursor
+
+    @property
+    def lastrowid(self):
+        return self._cur.lastrowid
+
+    @property
+    def rowcount(self):
+        return self._cur.rowcount
+
+    def execute(self, sql: str, args=()):
+        translated = _translate_sql(sql)
+        if args is None:
+            args = ()
+        self._cur.execute(translated, args)
+        return self
+
+    def executemany(self, sql: str, seq_of_args):
+        translated = _translate_sql(sql)
+        self._cur.executemany(translated, seq_of_args)
+        return self
+
+    def fetchone(self):
+        return _row_to_dict(self._cur.fetchone())
+
+    def fetchall(self):
+        return [_row_to_dict(r) for r in self._cur.fetchall()]
+
+    def close(self):
+        self._cur.close()
 
 
 class DB:
-    def __init__(self, config: dict):
-        self._pool = PooledDB(
-            creator=pymysql,
-            maxconnections=10,
-            mincached=2,
-            maxcached=5,
-            blocking=True,
-            host=config["host"],
-            port=int(config.get("port", 3306)),
-            user=config["user"],
-            password=config["password"],
-            database=config["name"],
-            charset="utf8mb4",
-            cursorclass=DictCursor,
-            autocommit=False,
-        )
+    IntegrityError = sqlite3.IntegrityError
 
-    def _connect(self):
-        return self._pool.connection()
+    def __init__(self, config: dict | str):
+        if isinstance(config, str):
+            self.path = config
+        else:
+            self.path = config.get("path") or ":memory:"
+
+        self._is_memory = self.path == ":memory:" or self.path.startswith("file::memory:")
+        self._lock = threading.RLock()
+        self._shared_conn: sqlite3.Connection | None = None
+
+        if self._is_memory:
+            self._shared_conn = self._open_connection()
+        else:
+            parent_dir = os.path.dirname(os.path.abspath(self.path))
+            if parent_dir:
+                os.makedirs(parent_dir, exist_ok=True)
+            conn = self._open_connection()
+            try:
+                conn.execute("PRAGMA journal_mode = WAL;")
+                conn.commit()
+            finally:
+                conn.close()
+
+    def _open_connection(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(
+            self.path,
+            timeout=30.0,
+            check_same_thread=False,
+        )
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("PRAGMA busy_timeout = 30000;")
+        if not self._is_memory:
+            conn.execute("PRAGMA journal_mode = WAL;")
+        return conn
 
     @contextmanager
     def cursor(self):
-        conn = self._connect()
-        try:
-            with conn.cursor() as cur:
+        if self._is_memory:
+            with self._lock:
+                assert self._shared_conn is not None
+                raw_cur = self._shared_conn.cursor()
+                cur = _DictCursorWrapper(raw_cur)
+                try:
+                    yield cur
+                    self._shared_conn.commit()
+                except Exception:
+                    self._shared_conn.rollback()
+                    raise
+                finally:
+                    cur.close()
+        else:
+            conn = self._open_connection()
+            raw_cur = conn.cursor()
+            cur = _DictCursorWrapper(raw_cur)
+            try:
                 yield cur
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+            finally:
+                cur.close()
+                conn.close()
 
     @contextmanager
     def transaction(self):
-        """Execute multiple statements atomically in one connection.
-
-        Use when several writes must succeed or fail together:
-
-            with db.transaction() as cur:
-                cur.execute("INSERT INTO a ...", (...))
-                cur.execute("INSERT INTO b ...", (...))
-        """
+        """Execute multiple statements atomically in one connection."""
         with self.cursor() as cur:
             yield cur
 
@@ -78,3 +158,9 @@ class DB:
         with self.cursor() as cur:
             cur.execute(sql, args)
             return cur.lastrowid
+
+    def close(self):
+        if self._shared_conn is not None:
+            with self._lock:
+                self._shared_conn.close()
+                self._shared_conn = None

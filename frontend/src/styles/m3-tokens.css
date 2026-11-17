@@ -1,0 +1,112 @@
+/* Material Design 3 Design Tokens - Light & Dark Tonal Palettes */
+
+:root,
+[data-theme="light"] {
+  --md-sys-color-primary: #0b57d0;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #d3e3fd;
+  --md-sys-color-on-primary-container: #041e49;
+
+  --md-sys-color-secondary: #565f71;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #d9e3f8;
+  --md-sys-color-on-secondary-container: #131c2b;
+
+  --md-sys-color-tertiary: #6e5676;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #f7d8ff;
+  --md-sys-color-on-tertiary-container: #27132f;
+
+  --md-sys-color-error: #b3261e;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #f9dedc;
+  --md-sys-color-on-error-container: #410e0b;
+
+  --md-sys-color-success: #146c2e;
+  --md-sys-color-success-container: #c4eed0;
+  --md-sys-color-on-success-container: #072711;
+
+  --md-sys-color-warning: #8f4e00;
+  --md-sys-color-warning-container: #ffdcbe;
+  --md-sys-color-on-warning-container: #2e1500;
+
+  --md-sys-color-surface: #faf9fd;
+  --md-sys-color-surface-dim: #dad9df;
+  --md-sys-color-surface-bright: #faf9fd;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f4f3f8;
+  --md-sys-color-surface-container: #eeedf4;
+  --md-sys-color-surface-container-high: #e8e7ee;
+  --md-sys-color-surface-container-highest: #e2e2e9;
+
+  --md-sys-color-on-surface: #1b1b1f;
+  --md-sys-color-on-surface-variant: #44474e;
+  --md-sys-color-outline: #74777f;
+  --md-sys-color-outline-variant: #c4c6d0;
+
+  --md-sys-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.08), 0 1px 3px 1px rgba(0, 0, 0, 0.05);
+  --md-sys-elevation-2: 0 1px 2px rgba(0, 0, 0, 0.1), 0 2px 6px 2px rgba(0, 0, 0, 0.06);
+  --md-sys-elevation-3: 0 4px 8px 3px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] {
+  --md-sys-color-primary: #a8c7fa;
+  --md-sys-color-on-primary: #062e6f;
+  --md-sys-color-primary-container: #0842a0;
+  --md-sys-color-on-primary-container: #d3e3fd;
+
+  --md-sys-color-secondary: #bec6dc;
+  --md-sys-color-on-secondary: #283141;
+  --md-sys-color-secondary-container: #3e4759;
+  --md-sys-color-on-secondary-container: #dae2f9;
+
+  --md-sys-color-tertiary: #dabce2;
+  --md-sys-color-on-tertiary: #3d2946;
+  --md-sys-color-tertiary-container: #553f5d;
+  --md-sys-color-on-tertiary-container: #f7d8ff;
+
+  --md-sys-color-error: #f2b8b5;
+  --md-sys-color-on-error: #601410;
+  --md-sys-color-error-container: #8c1d18;
+  --md-sys-color-on-error-container: #f9dedc;
+
+  --md-sys-color-success: #6dd58c;
+  --md-sys-color-success-container: #0f5223;
+  --md-sys-color-on-success-container: #c4eed0;
+
+  --md-sys-color-warning: #ffb77c;
+  --md-sys-color-warning-container: #6d3a00;
+  --md-sys-color-on-warning-container: #ffdcbe;
+
+  --md-sys-color-surface: #121318;
+  --md-sys-color-surface-dim: #121318;
+  --md-sys-color-surface-bright: #38393f;
+  --md-sys-color-surface-container-lowest: #0d0e13;
+  --md-sys-color-surface-container-low: #1b1b20;
+  --md-sys-color-surface-container: #1f1f25;
+  --md-sys-color-surface-container-high: #292a2f;
+  --md-sys-color-surface-container-highest: #34343a;
+
+  --md-sys-color-on-surface: #e3e2e9;
+  --md-sys-color-on-surface-variant: #c4c6d0;
+  --md-sys-color-outline: #8e9099;
+  --md-sys-color-outline-variant: #44474e;
+
+  --md-sys-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --md-sys-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --md-sys-elevation-3: 0 6px 16px rgba(0, 0, 0, 0.55);
+}
+
+:root {
+  --md-sys-shape-corner-small: 8px;
+  --md-sys-shape-corner-medium: 16px;
+  --md-sys-shape-corner-large: 24px;
+  --md-sys-shape-corner-full: 9999px;
+
+  --font-sans: "Plus Jakarta Sans", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --sidebar-width-collapsed: 76px;
+  --sidebar-width-expanded: 280px;
+  --topbar-height: 64px;
+}
