@@ -91,6 +91,9 @@ export function AuthView({ onSuccess, onBackHome }: AuthViewProps) {
             className="m3-input"
             type="text"
             placeholder="用户名（3-50位）"
+            autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
             required
             minLength={3}
             maxLength={50}
@@ -101,6 +104,7 @@ export function AuthView({ onSuccess, onBackHome }: AuthViewProps) {
             className="m3-input"
             type="password"
             placeholder="密码（至少6位）"
+            autoComplete={tab === "login" ? "current-password" : "new-password"}
             required
             minLength={6}
             value={password}
@@ -111,6 +115,7 @@ export function AuthView({ onSuccess, onBackHome }: AuthViewProps) {
               className="m3-input"
               type="password"
               placeholder="确认密码"
+              autoComplete="new-password"
               required
               minLength={6}
               value={confirm}

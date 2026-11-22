@@ -9,6 +9,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { listQuestions } from "../api/client";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import type { ModuleType, QuestionPublic, UserProfile } from "../types";
 import {
   formatQuestionTag,
@@ -31,6 +32,7 @@ export function HomeView({
   onOpenBank,
   onOpenSettings,
 }: HomeViewProps) {
+  const isCoarsePointer = useMediaQuery("(pointer: coarse)");
   const [prompt, setPrompt] = useState("");
   const [selectedModule, setSelectedModule] = useState<ModuleType>("reading");
   const [sampleQuestions, setSampleQuestions] = useState<QuestionPublic[]>([]);
@@ -116,7 +118,8 @@ export function HomeView({
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            if (e.nativeEvent.isComposing) return;
+            if (!isCoarsePointer && e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               handleQuickSend();
             }
@@ -138,7 +141,7 @@ export function HomeView({
 
           <button
             type="button"
-            className="m3-btn-filled m3-btn-sm"
+            className="m3-btn-filled m3-btn-sm home-composer-send"
             disabled={!prompt.trim()}
             onClick={handleQuickSend}
           >
@@ -158,10 +161,12 @@ export function HomeView({
           <span className="module-card-icon">
             <PenTool size={22} />
           </span>
-          <span className="module-card-title">写作批改</span>
-          <span className="module-card-desc">
-            审题立意、结构框架搭建、高级句式润色与考官级评分反馈
-          </span>
+          <div className="module-card-body">
+            <span className="module-card-title">写作批改</span>
+            <span className="module-card-desc">
+              审题立意、结构框架搭建、高级句式润色与考官级评分反馈
+            </span>
+          </div>
         </button>
 
         <button
@@ -172,10 +177,12 @@ export function HomeView({
           <span className="module-card-icon">
             <BookOpen size={22} />
           </span>
-          <span className="module-card-title">阅读精读</span>
-          <span className="module-card-desc">
-            仔细阅读、选词填空与长篇匹配，左题右聊同义替换与长难句精讲
-          </span>
+          <div className="module-card-body">
+            <span className="module-card-title">阅读精读</span>
+            <span className="module-card-desc">
+              仔细阅读、选词填空与长篇匹配，左题右聊同义替换与长难句精讲
+            </span>
+          </div>
         </button>
 
         <button
@@ -186,10 +193,12 @@ export function HomeView({
           <span className="module-card-icon">
             <Languages size={22} />
           </span>
-          <span className="module-card-title">翻译训练</span>
-          <span className="module-card-desc">
-            中国文化与社会热点段落汉译英，主干切分与地道表达对比提升
-          </span>
+          <div className="module-card-body">
+            <span className="module-card-title">翻译训练</span>
+            <span className="module-card-desc">
+              中国文化与社会热点段落汉译英，主干切分与地道表达对比提升
+            </span>
+          </div>
         </button>
       </div>
 

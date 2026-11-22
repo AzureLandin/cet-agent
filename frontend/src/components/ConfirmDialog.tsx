@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+
 interface ConfirmDialogProps {
   open: boolean;
   title?: string;
@@ -17,11 +19,20 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onCancel]);
+
   if (!open) return null;
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div
-        className="modal-card"
+        className="modal-card modal-confirm-card"
         style={{ maxWidth: 420 }}
         onClick={(e) => e.stopPropagation()}
       >

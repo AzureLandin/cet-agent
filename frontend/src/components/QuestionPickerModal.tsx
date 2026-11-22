@@ -54,44 +54,58 @@ export function QuestionPickerModal({
     };
   }, [open, module, examLevel, topic]);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-card modal-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <strong style={{ fontSize: 16 }}>从真题库抽题</strong>
-          <button type="button" className="m3-icon-btn" onClick={onClose}>
+          <button
+            type="button"
+            className="m3-icon-btn"
+            onClick={onClose}
+            aria-label="关闭弹窗"
+          >
             <X size={18} />
           </button>
         </div>
 
         <div className="modal-body">
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <select
-              className="m3-select"
-              style={{ width: 130 }}
-              value={examLevel}
-              onChange={(e) => setExamLevel(e.target.value)}
-            >
-              <option value="">全部级别</option>
-              <option value="CET4">CET4</option>
-              <option value="CET6">CET6</option>
-            </select>
+          <div className="picker-filters">
+            <div className="picker-selects">
+              <select
+                className="m3-select"
+                value={examLevel}
+                onChange={(e) => setExamLevel(e.target.value)}
+              >
+                <option value="">全部级别</option>
+                <option value="CET4">CET4</option>
+                <option value="CET6">CET6</option>
+              </select>
 
-            <select
-              className="m3-select"
-              style={{ width: 140 }}
-              value={module}
-              onChange={(e) => setModule(e.target.value)}
-            >
-              <option value="">全部题型</option>
-              <option value="writing">写作</option>
-              <option value="reading">阅读</option>
-              <option value="translation">翻译</option>
-            </select>
+              <select
+                className="m3-select"
+                value={module}
+                onChange={(e) => setModule(e.target.value)}
+              >
+                <option value="">全部题型</option>
+                <option value="writing">写作</option>
+                <option value="reading">阅读</option>
+                <option value="translation">翻译</option>
+              </select>
+            </div>
 
-            <div style={{ flex: 1, minWidth: 180, position: "relative" }}>
+            <div className="picker-search">
               <Search
                 size={15}
                 style={{
@@ -125,12 +139,7 @@ export function QuestionPickerModal({
               {items.map((q) => (
                 <div
                   key={q.id}
-                  className="question-mini-card"
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
+                  className="question-mini-card picker-question-item"
                 >
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 4 }}>
@@ -151,7 +160,7 @@ export function QuestionPickerModal({
                   </div>
                   <button
                     type="button"
-                    className="m3-btn-tonal m3-btn-sm"
+                    className="m3-btn-tonal m3-btn-sm picker-select-btn"
                     onClick={() => onSelect(q)}
                   >
                     载入练习

@@ -1,8 +1,10 @@
 import { LogIn, LogOut, Menu, Settings } from "lucide-react";
-import type { AppView, UserProfile } from "../types";
+import type { AppView, ModuleType, UserProfile } from "../types";
+import { MODULE_LABELS } from "../utils/format";
 
 interface TopBarProps {
   currentView: AppView;
+  activeModule?: ModuleType | null;
   profile: UserProfile | null;
   onOpenMobileMenu: () => void;
   onNavigate: (view: AppView) => void;
@@ -20,6 +22,7 @@ const VIEW_TITLES: Record<AppView, string> = {
 
 export function TopBar({
   currentView,
+  activeModule,
   profile,
   onOpenMobileMenu,
   onNavigate,
@@ -27,6 +30,16 @@ export function TopBar({
 }: TopBarProps) {
   const displayName = profile?.display_name || profile?.username || "未登录";
   const initial = displayName.charAt(0).toUpperCase();
+
+  const mobileTitles: Record<AppView, string> = {
+    home: "CET Agent",
+    chat: activeModule ? MODULE_LABELS[activeModule] : "练习工作台",
+    bank: "真题题库",
+    admin: "真题管理",
+    settings: "偏好设置",
+    auth: "账户登录",
+  };
+  const mobileTitle = mobileTitles[currentView];
 
   return (
     <header className="top-bar">
@@ -36,12 +49,14 @@ export function TopBar({
           className="m3-icon-btn mobile-menu-btn"
           onClick={onOpenMobileMenu}
           title="打开菜单"
+          aria-label="打开菜单"
         >
           <Menu size={20} />
         </button>
         <div className="brand-title">
-          <span>CET Agent</span>
+          <span className="top-bar-brand-name">CET Agent</span>
           <span className="brand-pill">{VIEW_TITLES[currentView]}</span>
+          <span className="top-bar-mobile-title">{mobileTitle}</span>
         </div>
       </div>
 
@@ -49,7 +64,9 @@ export function TopBar({
         {profile ? (
           <>
             {profile.exam_level && (
-              <span className="m3-pill-badge primary">{profile.exam_level}</span>
+              <span className="m3-pill-badge primary top-bar-exam-badge">
+                {profile.exam_level}
+              </span>
             )}
             <button
               type="button"
@@ -67,12 +84,12 @@ export function TopBar({
               >
                 {!profile.avatar_url ? initial : null}
               </span>
-              <span>{displayName}</span>
-              <Settings size={14} style={{ opacity: 0.7 }} />
+              <span className="avatar-btn-name">{displayName}</span>
+              <Settings size={14} className="avatar-btn-gear" style={{ opacity: 0.7 }} />
             </button>
             <button
               type="button"
-              className="m3-icon-btn"
+              className="m3-icon-btn top-bar-logout-btn"
               title="退出登录"
               onClick={onLogout}
             >

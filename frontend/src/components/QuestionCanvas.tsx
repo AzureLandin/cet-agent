@@ -29,6 +29,8 @@ interface QuestionCanvasProps {
   ) => void;
   onSubmitToApi: (userAnswers: unknown) => Promise<SubmitQuestionResponse>;
   isStreaming: boolean;
+  isMobile?: boolean;
+  hiddenOnMobile?: boolean;
 }
 
 function normalizeAnswersMap(draft: unknown): Record<string, string> {
@@ -69,6 +71,8 @@ export function QuestionCanvas({
   onSubmitGrading,
   onSubmitToApi,
   isStreaming,
+  isMobile = false,
+  hiddenOnMobile = false,
 }: QuestionCanvasProps) {
   const [seconds, setSeconds] = useState(0);
   const [timerRunning, setTimerRunning] = useState(true);
@@ -313,12 +317,18 @@ export function QuestionCanvas({
   };
 
   return (
-    <section className="workspace-left" aria-label="题目工作区">
-      <header className="pane-header">
+    <section
+      className={`workspace-left ${hiddenOnMobile ? "mobile-pane-hidden" : ""}`}
+      aria-label="题目工作区"
+    >
+      <header className="pane-header question-pane-header">
         <div className="pane-header-left">
-          <span className="m3-pill-badge primary">{formatQuestionTag(question)}</span>
+          <span className="m3-pill-badge primary question-tag-badge">
+            {formatQuestionTag(question)}
+          </span>
           {draftSaveStatus !== "idle" && (
             <span
+              className="draft-save-status"
               style={{
                 fontSize: 12,
                 color: "var(--md-sys-color-on-surface-variant)",
@@ -335,27 +345,19 @@ export function QuestionCanvas({
             <span>{formatDuration(seconds)}</span>
             <button
               type="button"
-              style={{
-                border: "none",
-                background: "transparent",
-                padding: 0,
-                display: "inline-flex",
-              }}
+              className="timer-action-btn"
               onClick={() => setTimerRunning((r) => !r)}
               title={timerRunning ? "暂停计时" : "继续计时"}
+              aria-label={timerRunning ? "暂停计时" : "继续计时"}
             >
               {timerRunning ? <Pause size={12} /> : <Play size={12} />}
             </button>
             <button
               type="button"
-              style={{
-                border: "none",
-                background: "transparent",
-                padding: 0,
-                display: "inline-flex",
-              }}
+              className="timer-action-btn"
               onClick={() => setSeconds(0)}
               title="重置计时"
+              aria-label="重置计时"
             >
               <RotateCcw size={12} />
             </button>
@@ -371,14 +373,16 @@ export function QuestionCanvas({
             <span>更换题目</span>
           </button>
 
-          <button
-            type="button"
-            className="m3-icon-btn"
-            onClick={onCollapsePane}
-            title="收起题板"
-          >
-            <PanelLeftClose size={18} />
-          </button>
+          {!isMobile && (
+            <button
+              type="button"
+              className="m3-icon-btn"
+              onClick={onCollapsePane}
+              title="收起题板"
+            >
+              <PanelLeftClose size={18} />
+            </button>
+          )}
         </div>
       </header>
 
@@ -410,7 +414,7 @@ export function QuestionCanvas({
               border: "none",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <div className="submit-banner-header">
               <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700 }}>
                 <Sparkles size={18} />
                 {submitResult.total ? (
@@ -533,12 +537,11 @@ export function QuestionCanvas({
 
             <div>
               <div
+                className="word-bank-header"
                 style={{
                   fontSize: 13,
                   fontWeight: 600,
                   marginBottom: 8,
-                  display: "flex",
-                  justifyContent: "space-between",
                 }}
               >
                 <span>
@@ -589,13 +592,7 @@ export function QuestionCanvas({
             </div>
 
             {/* Compact blank grid for quick review/selection */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
-                gap: 8,
-              }}
-            >
+            <div className="cloze-select-grid">
               {bankedClozeBlanks.map((b) => (
                 <div
                   key={b}
@@ -654,13 +651,7 @@ export function QuestionCanvas({
                 return (
                   <div
                     key={key}
-                    className="mcq-card"
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 12,
-                    }}
+                    className="mcq-card matching-statement-card"
                   >
                     <div style={{ flex: 1, fontSize: 14 }}>
                       <strong>{key}. </strong>
@@ -681,8 +672,7 @@ export function QuestionCanvas({
                       )}
                     </div>
                     <select
-                      className="m3-select"
-                      style={{ width: 96 }}
+                      className="m3-select matching-select"
                       value={selected}
                       onChange={(e) => setAnswerKey(key, e.target.value)}
                     >
@@ -758,12 +748,8 @@ export function QuestionCanvas({
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  fontSize: 13,
-                }}
+                className="draft-editor-header"
+                style={{ fontSize: 13 }}
               >
                 <span style={{ fontWeight: 600 }}>
                   {question.module === "writing" ? "作文草稿区" : "译文作答区"}
@@ -773,7 +759,7 @@ export function QuestionCanvas({
                 </span>
               </div>
               <textarea
-                className="m3-textarea"
+                className="m3-textarea draft-textarea"
                 rows={12}
                 placeholder={
                   question.module === "writing"
@@ -782,14 +768,13 @@ export function QuestionCanvas({
                 }
                 value={textDraft}
                 onChange={(e) => handleTextChange(e.target.value)}
-                style={{ minHeight: 240, lineHeight: 1.7, resize: "vertical" }}
               />
             </div>
           </>
         )}
       </div>
 
-      <footer className="pane-footer">
+      <footer className="pane-footer question-pane-footer">
         <button
           type="button"
           className="m3-btn-outlined"

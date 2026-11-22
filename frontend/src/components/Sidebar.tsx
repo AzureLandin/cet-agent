@@ -3,6 +3,7 @@ import {
   FileSpreadsheet,
   Home,
   Languages,
+  LogOut,
   Menu,
   MessageSquare,
   Moon,
@@ -12,6 +13,7 @@ import {
   ShieldCheck,
   Sun,
   Trash2,
+  X,
 } from "lucide-react";
 import type {
   AppView,
@@ -37,6 +39,7 @@ interface SidebarProps {
   profile: UserProfile | null;
   theme: "light" | "dark";
   onToggleTheme: () => void;
+  onLogout?: () => void;
 }
 
 const MODULE_ICON: Record<ModuleType, JSX.Element> = {
@@ -60,6 +63,7 @@ export function Sidebar({
   profile,
   theme,
   onToggleTheme,
+  onLogout,
 }: SidebarProps) {
   const [moduleFilter, setModuleFilter] = useState<"all" | ModuleType>("all");
 
@@ -80,26 +84,42 @@ export function Sidebar({
   const isAdmin = profile?.role === "admin";
 
   return (
-    <aside
-      className={`nav-rail ${expanded ? "expanded" : ""} ${
-        mobileOpen ? "mobile-open" : ""
-      }`}
-    >
-      <div className="nav-rail-header">
-        <button
-          type="button"
-          className="m3-icon-btn"
-          title={expanded ? "收起菜单" : "展开菜单"}
-          onClick={onToggleExpand}
-        >
-          <Menu size={20} />
-        </button>
-        {expanded && (
-          <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.01em" }}>
-            CET Agent
-          </span>
-        )}
-      </div>
+    <>
+      <div
+        className={`mobile-drawer-backdrop ${mobileOpen ? "open" : ""}`}
+        onClick={onCloseMobile}
+        aria-hidden="true"
+      />
+      <aside
+        className={`nav-rail ${expanded ? "expanded" : ""} ${
+          mobileOpen ? "mobile-open" : ""
+        }`}
+      >
+        <div className="nav-rail-header">
+          <button
+            type="button"
+            className="m3-icon-btn desktop-drawer-toggle"
+            title={expanded ? "收起菜单" : "展开菜单"}
+            onClick={onToggleExpand}
+          >
+            <Menu size={20} />
+          </button>
+          {(expanded || mobileOpen) && (
+            <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.01em" }}>
+              CET Agent
+            </span>
+          )}
+          <button
+            type="button"
+            className="m3-icon-btn mobile-drawer-close"
+            title="关闭菜单"
+            aria-label="关闭菜单"
+            onClick={onCloseMobile}
+            style={{ marginLeft: "auto" }}
+          >
+            <X size={20} />
+          </button>
+        </div>
 
       <button
         type="button"
@@ -242,32 +262,48 @@ export function Sidebar({
         </>
       )}
 
-      <div className="nav-footer" style={{ marginTop: expanded || mobileOpen ? 0 : "auto" }}>
-        <button
-          type="button"
-          className="nav-item"
-          title={theme === "light" ? "切换深色模式" : "切换浅色模式"}
-          onClick={onToggleTheme}
-        >
-          {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
-          {(expanded || mobileOpen) && (
-            <span>{theme === "light" ? "深色主题" : "浅色主题"}</span>
-          )}
-        </button>
+        <div className="nav-footer" style={{ marginTop: expanded || mobileOpen ? 0 : "auto" }}>
+          <button
+            type="button"
+            className="nav-item"
+            title={theme === "light" ? "切换深色模式" : "切换浅色模式"}
+            onClick={onToggleTheme}
+          >
+            {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+            {(expanded || mobileOpen) && (
+              <span>{theme === "light" ? "深色主题" : "浅色主题"}</span>
+            )}
+          </button>
 
-        <button
-          type="button"
-          className={`nav-item ${currentView === "settings" ? "active" : ""}`}
-          title="设置"
-          onClick={() => {
-            onNavigate("settings");
-            onCloseMobile();
-          }}
-        >
-          <Settings size={18} />
-          {(expanded || mobileOpen) && <span>设置与账户</span>}
-        </button>
-      </div>
-    </aside>
+          <button
+            type="button"
+            className={`nav-item ${currentView === "settings" ? "active" : ""}`}
+            title="设置"
+            onClick={() => {
+              onNavigate("settings");
+              onCloseMobile();
+            }}
+          >
+            <Settings size={18} />
+            {(expanded || mobileOpen) && <span>设置与账户</span>}
+          </button>
+
+          {profile && onLogout && (
+            <button
+              type="button"
+              className="nav-item mobile-only-nav-item"
+              title="退出登录"
+              onClick={() => {
+                onCloseMobile();
+                onLogout();
+              }}
+            >
+              <LogOut size={18} />
+              <span>退出登录</span>
+            </button>
+          )}
+        </div>
+      </aside>
+    </>
   );
 }

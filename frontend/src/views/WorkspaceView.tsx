@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { BookOpen, Loader2, MessageSquare } from "lucide-react";
 import * as api from "../api/client";
 import { ChatPane } from "../components/ChatPane";
 import { QuestionCanvas } from "../components/QuestionCanvas";
 import { QuestionPickerModal } from "../components/QuestionPickerModal";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import type {
   ChatMessage,
   QuestionPublic,
@@ -25,6 +27,7 @@ export function WorkspaceView({
   onSessionUpdated,
   onToast,
 }: WorkspaceViewProps) {
+  const isMobile = useMediaQuery("(max-width: 960px)");
   const [messages, setMessages] = useState<ChatMessage[]>(session.messages || []);
   const [activeQuestion, setActiveQuestion] = useState<QuestionPublic | null>(
     session.active_question || null
@@ -33,6 +36,13 @@ export function WorkspaceView({
   const [isQuestionPaneOpen, setIsQuestionPaneOpen] = useState<boolean>(
     Boolean(session.active_question)
   );
+  const [mobileTab, setMobileTab] = useState<"question" | "chat">(() =>
+    session.active_question && !pendingPrompt && (session.messages?.length ?? 0) === 0
+      ? "question"
+      : "chat"
+  );
+  const [hasUnreadQuestion, setHasUnreadQuestion] = useState(false);
+  const [hasUnreadChat, setHasUnreadChat] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [draftSaveStatus, setDraftSaveStatus] = useState<
@@ -42,6 +52,16 @@ export function WorkspaceView({
   const abortRef = useRef<AbortController | null>(null);
   const saveTimerRef = useRef<number | null>(null);
   const sentPendingRef = useRef<string | null>(null);
+  const mobileTabRef = useRef<"question" | "chat">(mobileTab);
+  const isMobileRef = useRef<boolean>(isMobile);
+
+  useEffect(() => {
+    mobileTabRef.current = mobileTab;
+  }, [mobileTab]);
+
+  useEffect(() => {
+    isMobileRef.current = isMobile;
+  }, [isMobile]);
 
   // Sync when switching sessions
   useEffect(() => {
@@ -51,6 +71,13 @@ export function WorkspaceView({
     setActiveQuestion(session.active_question || null);
     setDraftAnswer(session.draft_answer ?? null);
     setIsQuestionPaneOpen(Boolean(session.active_question));
+    setMobileTab(
+      session.active_question && !pendingPrompt && (session.messages?.length ?? 0) === 0
+        ? "question"
+        : "chat"
+    );
+    setHasUnreadQuestion(false);
+    setHasUnreadChat(false);
     setDraftSaveStatus("idle");
   }, [session.id]);
 
@@ -109,6 +136,9 @@ export function WorkspaceView({
           setActiveQuestion(question);
           setIsQuestionPaneOpen(true);
           setDraftAnswer(null);
+          if (isMobileRef.current && mobileTabRef.current === "chat") {
+            setHasUnreadQuestion(true);
+          }
           onSessionUpdated({
             ...session,
             active_question_id: question.id,
@@ -118,6 +148,9 @@ export function WorkspaceView({
           onToast(`已加载真题：${question.title}`, "success");
         },
         onToken: (token) => {
+          if (isMobileRef.current && mobileTabRef.current === "question") {
+            setHasUnreadChat(true);
+          }
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantId
@@ -128,6 +161,9 @@ export function WorkspaceView({
         },
         onDone: () => {
           setIsStreaming(false);
+          if (isMobileRef.current && mobileTabRef.current === "question") {
+            setHasUnreadChat(true);
+          }
           // Mark any remaining running tool calls as done
           setMessages((prev) =>
             prev.map((m) =>
@@ -195,6 +231,10 @@ export function WorkspaceView({
       setActiveQuestion(updated.active_question || question);
       setDraftAnswer(updated.draft_answer ?? null);
       setIsQuestionPaneOpen(true);
+      if (isMobile) {
+        setMobileTab("question");
+        setHasUnreadQuestion(false);
+      }
       onSessionUpdated({
         ...session,
         active_question_id: updated.active_question_id,
@@ -212,6 +252,10 @@ export function WorkspaceView({
 
   const handleAskHint = (currentDraft: unknown) => {
     if (!activeQuestion) return;
+    if (isMobile) {
+      setMobileTab("chat");
+      setHasUnreadChat(false);
+    }
     const prompt = `我正在做《${activeQuestion.title}》（题号ID: ${activeQuestion.id}）。请先不要直接公布完整答案，给我一些解题提示、定位线索或写作/翻译切入点。我目前的作答进度是：${JSON.stringify(
       currentDraft ?? {}
     )}`;
@@ -223,6 +267,16 @@ export function WorkspaceView({
     submitResult: SubmitQuestionResponse | null
   ) => {
     if (!activeQuestion) return;
+    if (isMobile) {
+      if (activeQuestion.module === "reading" && submitResult?.total) {
+        onToast(
+          `客观题得分 ${submitResult.score ?? 0}/${submitResult.total}，AI 教练正在精讲`,
+          "success"
+        );
+      }
+      setMobileTab("chat");
+      setHasUnreadChat(false);
+    }
     if (activeQuestion.module === "reading") {
       const scoreSummary = submitResult
         ? `系统客观题判分结果为 ${submitResult.score ?? 0}/${submitResult.total ?? 0}。`
@@ -243,9 +297,58 @@ export function WorkspaceView({
     }
   };
 
+  const switchMobileTab = (tab: "question" | "chat") => {
+    setMobileTab(tab);
+    if (tab === "question") {
+      setHasUnreadQuestion(false);
+    } else {
+      setHasUnreadChat(false);
+    }
+  };
+
   return (
     <div className="workspace-shell">
-      {activeQuestion && isQuestionPaneOpen && (
+      {isMobile && activeQuestion && (
+        <div
+          className="mobile-workspace-tabs"
+          role="tablist"
+          aria-label="工作区切换"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mobileTab === "question"}
+            className={`mobile-workspace-tab ${
+              mobileTab === "question" ? "active" : ""
+            }`}
+            onClick={() => switchMobileTab("question")}
+          >
+            <BookOpen size={15} />
+            <span>真题作答</span>
+            {hasUnreadQuestion && <span className="mobile-tab-dot" />}
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mobileTab === "chat"}
+            className={`mobile-workspace-tab ${
+              mobileTab === "chat" ? "active" : ""
+            }`}
+            onClick={() => switchMobileTab("chat")}
+          >
+            {isStreaming ? (
+              <Loader2 size={15} className="spin" />
+            ) : (
+              <MessageSquare size={15} />
+            )}
+            <span>AI 教练</span>
+            {hasUnreadChat && !isStreaming && <span className="mobile-tab-dot" />}
+          </button>
+        </div>
+      )}
+
+      {activeQuestion && (isMobile || isQuestionPaneOpen) && (
         <QuestionCanvas
           question={activeQuestion}
           draftAnswer={draftAnswer}
@@ -259,6 +362,8 @@ export function WorkspaceView({
             api.submitQuestion(activeQuestion.id, userAnswers, session.id)
           }
           isStreaming={isStreaming}
+          isMobile={isMobile}
+          hiddenOnMobile={isMobile && mobileTab !== "question"}
         />
       )}
 
@@ -272,6 +377,10 @@ export function WorkspaceView({
         onOpenQuestionPicker={() => setPickerOpen(true)}
         onSendMessage={handleSendMessage}
         activeQuestion={activeQuestion}
+        isMobile={isMobile}
+        hiddenOnMobile={isMobile && Boolean(activeQuestion) && mobileTab !== "chat"}
+        hasUnreadQuestion={hasUnreadQuestion}
+        onSwitchToQuestion={() => switchMobileTab("question")}
       />
 
       <QuestionPickerModal

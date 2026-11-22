@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  ArrowRight,
   CheckCircle2,
   FilePlus2,
   Loader2,
@@ -7,6 +8,7 @@ import {
   Send,
   Sparkles,
 } from "lucide-react";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import type { ChatMessage, ModuleType, QuestionPublic } from "../types";
 import { getToolLabel, MODULE_LABELS } from "../utils/format";
 import { renderSanitizedMarkdown, stripToolMarkup } from "../utils/markdown";
@@ -21,6 +23,10 @@ interface ChatPaneProps {
   onOpenQuestionPicker: () => void;
   onSendMessage: (content: string) => void;
   activeQuestion: QuestionPublic | null;
+  isMobile?: boolean;
+  hiddenOnMobile?: boolean;
+  hasUnreadQuestion?: boolean;
+  onSwitchToQuestion?: () => void;
 }
 
 const QUICK_CHIPS_BY_MODULE: Record<ModuleType, string[]> = {
@@ -39,9 +45,15 @@ export function ChatPane({
   onOpenQuestionPicker,
   onSendMessage,
   activeQuestion,
+  isMobile = false,
+  hiddenOnMobile = false,
+  hasUnreadQuestion = false,
+  onSwitchToQuestion,
 }: ChatPaneProps) {
   const [input, setInput] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const isCoarsePointer = useMediaQuery("(pointer: coarse)");
 
   useEffect(() => {
     const el = listRef.current;
@@ -49,6 +61,13 @@ export function ChatPane({
       el.scrollTop = el.scrollHeight;
     }
   }, [messages, isStreaming]);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [input]);
 
   const handleSubmit = () => {
     const trimmed = input.trim();
@@ -61,7 +80,9 @@ export function ChatPane({
 
   return (
     <section
-      className={`workspace-right ${!hasActiveQuestion || !isQuestionPaneOpen ? "centered" : ""}`}
+      className={`workspace-right ${
+        !hasActiveQuestion || (!isMobile && !isQuestionPaneOpen) ? "centered" : ""
+      } ${hiddenOnMobile ? "mobile-pane-hidden" : ""}`}
       aria-label="AI 教练对话区"
     >
       <header className="pane-header">
@@ -70,7 +91,7 @@ export function ChatPane({
             <Sparkles size={13} />
             <span>{MODULE_LABELS[module]} · AI 教练</span>
           </span>
-          {activeQuestion && !isQuestionPaneOpen && (
+          {!isMobile && activeQuestion && !isQuestionPaneOpen && (
             <span
               style={{
                 fontSize: 12,
@@ -95,7 +116,7 @@ export function ChatPane({
             <span>抽题</span>
           </button>
 
-          {hasActiveQuestion && !isQuestionPaneOpen && (
+          {!isMobile && hasActiveQuestion && !isQuestionPaneOpen && (
             <button
               type="button"
               className="m3-btn-outlined m3-btn-sm"
@@ -107,6 +128,21 @@ export function ChatPane({
           )}
         </div>
       </header>
+
+      {isMobile && activeQuestion && hasUnreadQuestion && onSwitchToQuestion && (
+        <button
+          type="button"
+          className="mobile-question-banner"
+          onClick={onSwitchToQuestion}
+        >
+          <span className="mobile-question-banner-text">
+            已载入真题：{activeQuestion.title}
+          </span>
+          <span className="mobile-question-banner-cta">
+            去作答 <ArrowRight size={14} />
+          </span>
+        </button>
+      )}
 
       <div className="chat-messages" ref={listRef}>
         {messages.length === 0 ? (
@@ -227,12 +263,18 @@ export function ChatPane({
 
         <div className="chat-composer">
           <textarea
+            ref={textareaRef}
             rows={1}
-            placeholder="输入你的问题、句子或思路（Enter 发送，Shift+Enter 换行）"
+            placeholder={
+              isCoarsePointer
+                ? "输入你的问题、句子或思路..."
+                : "输入你的问题、句子或思路（Enter 发送，Shift+Enter 换行）"
+            }
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
+              if (e.nativeEvent.isComposing) return;
+              if (!isCoarsePointer && e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSubmit();
               }
@@ -240,10 +282,11 @@ export function ChatPane({
           />
           <button
             type="button"
-            className="m3-btn-filled m3-btn-sm"
+            className="m3-btn-filled m3-btn-sm chat-send-btn"
             disabled={!input.trim() || isStreaming}
             onClick={handleSubmit}
             title="发送"
+            aria-label="发送"
           >
             <Send size={15} />
           </button>

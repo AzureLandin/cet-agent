@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "./api/client";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { MobileBottomNav } from "./components/MobileBottomNav";
 import { Sidebar } from "./components/Sidebar";
 import { ToastMessage, ToastStack } from "./components/Toast";
 import { TopBar } from "./components/TopBar";
@@ -57,7 +58,22 @@ export function App() {
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("cet_theme", theme);
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) {
+      metaTheme.setAttribute("content", theme === "dark" ? "#121318" : "#faf9fd");
+    }
   }, [theme]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mobileMenuOpen]);
 
   const addToast = useCallback(
     (text: string, type: "info" | "success" | "error" = "info") => {
@@ -232,6 +248,8 @@ export function App() {
     setCurrentView(view);
   };
 
+  const showMobileBottomNav = currentView !== "chat" && currentView !== "auth";
+
   return (
     <div className="app-shell">
       <Sidebar
@@ -251,18 +269,24 @@ export function App() {
         onToggleTheme={() =>
           setTheme((t) => (t === "light" ? "dark" : "light"))
         }
+        onLogout={() => void handleLogout()}
       />
 
       <main className="main-area">
         <TopBar
           currentView={currentView}
+          activeModule={activeSession?.module ?? null}
           profile={profile}
           onOpenMobileMenu={() => setMobileMenuOpen((o) => !o)}
           onNavigate={handleNavigate}
           onLogout={() => void handleLogout()}
         />
 
-        <div className="view-body">
+        <div
+          className={`view-body ${
+            showMobileBottomNav ? "with-mobile-bottom-nav" : ""
+          }`}
+        >
           {!authChecked ? (
             <div style={{ padding: 48, textAlign: "center", opacity: 0.7 }}>
               正在初始化 CET Agent 工作台...
@@ -306,6 +330,19 @@ export function App() {
             />
           )}
         </div>
+
+        {showMobileBottomNav && (
+          <MobileBottomNav
+            currentView={currentView}
+            isAdmin={profile?.role === "admin"}
+            hasActiveSession={Boolean(activeSession)}
+            isLoggedIn={Boolean(profile)}
+            onNavigate={handleNavigate}
+            onResumeSession={() => {
+              if (activeSession) setCurrentView("chat");
+            }}
+          />
+        )}
       </main>
 
       <ConfirmDialog

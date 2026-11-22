@@ -121,6 +121,15 @@ function QuestionEditorModal({
     }
   }, [open, initialQuestion]);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   const handleSave = async (e: FormEvent) => {
@@ -196,11 +205,11 @@ function QuestionEditorModal({
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
-        className="modal-card"
+        className="modal-card modal-sheet"
         style={{ maxWidth: 820 }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="modal-header">
+        <div className="modal-header editor-modal-header">
           <strong style={{ fontSize: 16 }}>
             {initialQuestion ? `编辑题目 #${initialQuestion.id}` : "新增单题"}
           </strong>
@@ -212,7 +221,12 @@ function QuestionEditorModal({
             >
               {jsonMode ? "切换表单视图" : "切换 JSON 高级编辑"}
             </button>
-            <button type="button" className="m3-icon-btn" onClick={onClose}>
+            <button
+              type="button"
+              className="m3-icon-btn"
+              onClick={onClose}
+              aria-label="关闭弹窗"
+            >
               <X size={18} />
             </button>
           </div>
@@ -285,14 +299,8 @@ function QuestionEditorModal({
             </label>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 90px 90px 80px",
-              gap: 10,
-            }}
-          >
-            <label style={{ fontSize: 12 }}>
+          <div className="editor-title-meta-grid">
+            <label className="editor-title-field" style={{ fontSize: 12 }}>
               题目标题 *
               <input
                 className="m3-input"
@@ -307,6 +315,7 @@ function QuestionEditorModal({
               <input
                 className="m3-input"
                 type="number"
+                inputMode="numeric"
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
               />
@@ -327,6 +336,7 @@ function QuestionEditorModal({
               <input
                 className="m3-input"
                 type="number"
+                inputMode="numeric"
                 min={1}
                 value={setNo}
                 onChange={(e) => setSetNo(e.target.value)}
@@ -345,7 +355,7 @@ function QuestionEditorModal({
           </label>
 
           {jsonMode ? (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="editor-json-grid">
               <label style={{ fontSize: 12 }}>
                 content (JSON)
                 <textarea
@@ -605,7 +615,7 @@ export function AdminStudioView({ onToast }: AdminStudioViewProps) {
 
   return (
     <div className="page-container">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+      <div className="page-header-row admin-header-row">
         <div>
           <h1 style={{ margin: "0 0 4px", fontSize: 24 }}>真题管理与 MinerU 解析台</h1>
           <p style={{ margin: 0, fontSize: 14, color: "var(--md-sys-color-on-surface-variant)" }}>
@@ -687,6 +697,7 @@ export function AdminStudioView({ onToast }: AdminStudioViewProps) {
                 <input
                   className="m3-input"
                   type="number"
+                  inputMode="numeric"
                   placeholder="年份"
                   value={paperYear}
                   onChange={(e) => setPaperYear(e.target.value)}
@@ -710,6 +721,7 @@ export function AdminStudioView({ onToast }: AdminStudioViewProps) {
                 <input
                   className="m3-input"
                   type="number"
+                  inputMode="numeric"
                   min={1}
                   placeholder="第几套"
                   value={paperSetNo}
@@ -806,20 +818,20 @@ export function AdminStudioView({ onToast }: AdminStudioViewProps) {
               </div>
             ) : (
               <>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                <div className="admin-paper-header">
                   <div>
                     <h2 style={{ margin: "0 0 4px", fontSize: 18 }}>{selectedPaper.title}</h2>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 12 }}>
                       <span className="m3-pill-badge">状态：{selectedPaper.status}</span>
                       {selectedPaper.mineru_task_id && (
-                        <span className="m3-pill-badge">
+                        <span className="m3-pill-badge task-id-badge">
                           MinerU Task: {selectedPaper.mineru_task_id}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <div className="admin-paper-actions">
                     <button
                       type="button"
                       className="m3-btn-tonal m3-btn-sm"
@@ -994,9 +1006,9 @@ export function AdminStudioView({ onToast }: AdminStudioViewProps) {
       ) : (
         /* Tab 2: Single Question CRUD */
         <div className="m3-card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="admin-questions-header">
             <strong style={{ fontSize: 16 }}>全部真题管理（含草稿与已发布）</strong>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
                 type="button"
                 className="m3-btn-outlined m3-btn-sm"
@@ -1028,16 +1040,7 @@ export function AdminStudioView({ onToast }: AdminStudioViewProps) {
               {allQuestions.map((q) => (
                 <div
                   key={q.id}
-                  style={{
-                    padding: "12px 16px",
-                    borderRadius: 14,
-                    border: "1px solid var(--md-sys-color-outline-variant)",
-                    background: "var(--md-sys-color-surface-container-lowest)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 12,
-                  }}
+                  className="admin-question-row"
                 >
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 4 }}>
@@ -1053,7 +1056,7 @@ export function AdminStudioView({ onToast }: AdminStudioViewProps) {
                     </div>
                     <div style={{ fontWeight: 700, fontSize: 14 }}>{q.title}</div>
                   </div>
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div className="admin-question-actions">
                     <button
                       type="button"
                       className="m3-btn-tonal m3-btn-sm"

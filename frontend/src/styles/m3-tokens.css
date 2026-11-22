@@ -109,4 +109,6 @@
   --sidebar-width-collapsed: 76px;
   --sidebar-width-expanded: 280px;
   --topbar-height: 64px;
+  --topbar-height-mobile: 56px;
+  --bottom-nav-height: 60px;
 }

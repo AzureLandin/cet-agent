@@ -123,7 +123,7 @@ export function SettingsView({
 
   return (
     <div className="page-container" style={{ maxWidth: 760 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="page-header-row">
         <div>
           <h1 style={{ margin: "0 0 4px", fontSize: 24 }}>偏好设置与账户</h1>
           <p style={{ margin: 0, fontSize: 13, color: "var(--md-sys-color-on-surface-variant)" }}>
@@ -226,13 +226,14 @@ export function SettingsView({
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
             目标考试日期（CET 每年 6 月与 12 月举办）
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <div className="exam-date-grid">
             <input
               className="m3-input"
               type="number"
+              inputMode="numeric"
               min={2024}
               max={2099}
-              placeholder="年 (如 2026)"
+              placeholder="年份"
               value={year}
               onChange={(e) => setYear(e.target.value)}
             />
@@ -248,9 +249,10 @@ export function SettingsView({
             <input
               className="m3-input"
               type="number"
+              inputMode="numeric"
               min={1}
               max={31}
-              placeholder="日 (如 14)"
+              placeholder="日期"
               value={day}
               onChange={(e) => setDay(e.target.value)}
             />
@@ -258,7 +260,7 @@ export function SettingsView({
         </div>
       </section>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="settings-actions-row">
         <button type="button" className="m3-btn-outlined" onClick={onBackHome}>
           <ArrowLeft size={16} />
           <span>返回首页</span>

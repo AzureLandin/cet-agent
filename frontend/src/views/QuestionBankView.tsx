@@ -75,7 +75,7 @@ export function QuestionBankView({
 
   return (
     <div className="page-container">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+      <div className="page-header-row">
         <div>
           <h1 style={{ margin: "0 0 4px", fontSize: 24 }}>真题题库</h1>
           <p style={{ margin: 0, fontSize: 14, color: "var(--md-sys-color-on-surface-variant)" }}>
@@ -87,7 +87,7 @@ export function QuestionBankView({
 
       {/* M3 Filter Bar */}
       <div className="filter-bar">
-        <div style={{ display: "flex", gap: 6 }}>
+        <div className="filter-chip-group">
           {[
             ["", "全部级别"],
             ["CET4", "CET4"],
@@ -107,7 +107,7 @@ export function QuestionBankView({
           ))}
         </div>
 
-        <div style={{ display: "flex", gap: 6 }}>
+        <div className="filter-chip-group">
           {[
             ["", "全部模块"],
             ["writing", "写作"],
@@ -128,56 +128,57 @@ export function QuestionBankView({
           ))}
         </div>
 
-        <select
-          className="m3-select"
-          style={{ width: 150 }}
-          value={subType}
-          onChange={(e) => {
-            setSubType(e.target.value);
-            setOffset(0);
-          }}
-        >
-          <option value="">全部子题型</option>
-          <option value="essay">短文写作</option>
-          <option value="careful_reading">仔细阅读</option>
-          <option value="banked_cloze">选词填空</option>
-          <option value="matching">长篇匹配</option>
-          <option value="paragraph_translation">段落翻译</option>
-        </select>
-
-        <input
-          className="m3-input"
-          style={{ width: 110 }}
-          type="number"
-          placeholder="年份"
-          value={year}
-          onChange={(e) => {
-            setYear(e.target.value);
-            setOffset(0);
-          }}
-        />
-
-        <div style={{ flex: 1, minWidth: 180, position: "relative" }}>
-          <Search
-            size={15}
-            style={{
-              position: "absolute",
-              left: 12,
-              top: "50%",
-              transform: "translateY(-50%)",
-              opacity: 0.6,
-            }}
-          />
-          <input
-            className="m3-input"
-            style={{ paddingLeft: 34 }}
-            placeholder="搜索主题 / 关键词..."
-            value={topic}
+        <div className="filter-inputs-row">
+          <select
+            className="m3-select filter-select-subtype"
+            value={subType}
             onChange={(e) => {
-              setTopic(e.target.value);
+              setSubType(e.target.value);
+              setOffset(0);
+            }}
+          >
+            <option value="">全部子题型</option>
+            <option value="essay">短文写作</option>
+            <option value="careful_reading">仔细阅读</option>
+            <option value="banked_cloze">选词填空</option>
+            <option value="matching">长篇匹配</option>
+            <option value="paragraph_translation">段落翻译</option>
+          </select>
+
+          <input
+            className="m3-input filter-input-year"
+            type="number"
+            inputMode="numeric"
+            placeholder="年份"
+            value={year}
+            onChange={(e) => {
+              setYear(e.target.value);
               setOffset(0);
             }}
           />
+
+          <div className="filter-search-wrap">
+            <Search
+              size={15}
+              style={{
+                position: "absolute",
+                left: 12,
+                top: "50%",
+                transform: "translateY(-50%)",
+                opacity: 0.6,
+              }}
+            />
+            <input
+              className="m3-input"
+              style={{ paddingLeft: 34 }}
+              placeholder="搜索主题 / 关键词..."
+              value={topic}
+              onChange={(e) => {
+                setTopic(e.target.value);
+                setOffset(0);
+              }}
+            />
+          </div>
         </div>
       </div>
 
@@ -237,7 +238,7 @@ export function QuestionBankView({
 
       {/* Pagination */}
       {total > PAGE_SIZE && (
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12 }}>
+        <div className="pagination-bar">
           <button
             type="button"
             className="m3-btn-outlined m3-btn-sm"
